@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// cdc_bit.sv
+// cdc_bit.sv -- 2-flop level synchronizer.
 //
 // One of the three single-signal clock-domain-crossing primitives:
 //   cdc_bit       : 2-flop synchronizer for a LEVEL. The signal must be stable

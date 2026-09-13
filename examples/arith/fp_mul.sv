@@ -129,9 +129,22 @@ module fp_mul #(
   logic                sticky_dn, flush_zero;
 
   always_comb begin
+    // Default assignments first, so every signal is driven on every path.
+    // Without them the `flush_zero` branch below leaves `dn_mask` unassigned
+    // and the tool infers a latch -- see docs/05.
+    dn_shift   = '0;
+    flush_zero = 1'b0;
+    dn_mask    = '0;
+    mant_dn    = mant_g;
+    sticky_dn  = 1'b0;
+    exp_norm   = exp_sum;
+
     if (exp_sum < 1) begin
+      // The result is below the smallest normal: shift right into the
+      // subnormal range and let rounding decide the final value.
       dn_shift   = 1 - exp_sum;
       flush_zero = (dn_shift >= signed'((E+3)'(GW)));
+      exp_norm   = 1;
       if (flush_zero) begin
         mant_dn   = '0;
         sticky_dn = |mant_g;
@@ -140,14 +153,6 @@ module fp_mul #(
         mant_dn   = mant_g >> dn_shift[E+1:0];
         sticky_dn = |(mant_g & dn_mask);
       end
-      exp_norm = 1;
-    end else begin
-      dn_shift   = '0;
-      flush_zero = 1'b0;
-      dn_mask    = '0;
-      mant_dn    = mant_g;
-      sticky_dn  = 1'b0;
-      exp_norm   = exp_sum;
     end
   end
 

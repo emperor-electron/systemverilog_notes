@@ -8,7 +8,7 @@ weakness (nothing checks it for you).
 Companion code:
 [`examples/arith/fixed_pkg.sv`](../examples/arith/fixed_pkg.sv) ·
 [`examples/rtl/fir_systolic.sv`](../examples/rtl/fir_systolic.sv) ·
-[`examples/rtl/cordic.sv`](../examples/rtl/cordic.sv)
+[`examples/rtl/cordic_sincos.sv`](../examples/rtl/cordic_sincos.sv)
 
 ---
 
@@ -116,7 +116,7 @@ logic signed [31:0] q;
 assign q = 32'(num / 48'(b));               // (s48.32)/(s32.16) -> s.16
 ```
 
-Division is expensive; see [`examples/arith/divider_restoring.sv`](../examples/arith/divider_restoring.sv)
+Division is expensive; see [`examples/arith/div_restoring.sv`](../examples/arith/div_restoring.sv)
 for a multi-cycle implementation, or use a reciprocal-and-multiply approach.
 
 ### Shift = scaling by a power of two — free

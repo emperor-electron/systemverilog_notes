@@ -236,11 +236,18 @@ result = (a * b) == 16'd300;  // comparison operands are self-determined
                               //   16 to match the literal -- but it would not
                               //   widen to match an 8-bit LHS
 
-// (4) A shift count is self-determined, so a wide context never reaches it.
-result = 1 << n;            // `1` is 32-bit signed -> fine
+// (4) A shift's LEFT operand IS context-determined, so a wide destination
+//     rescues it -- but a narrow one, or no context at all, does not.
 logic [7:0] one8 = 8'd1;
-result = one8 << 9;         // 0: the shift happens at 8 bits, not 16
-result = 16'(one8) << 9;    // 512
+logic [7:0] narrow;
+narrow = one8 << 9;         // 0   : 8-bit destination, the bit shifts out
+result = one8 << 9;         // 512 : 16-bit context widens one8 first
+$display("%0d", one8 << 9); // 0   : no context, so 8 bits
+
+//     The shift COUNT, by contrast, is self-determined and always UNSIGNED.
+//     A negative count is a huge positive one, not a shift the other way.
+int n = -1;
+result = 16'd1 << n;        // 0 -- NOT "1 shifted right by one"
 ```
 
 **Practical rule:** the top-down pass only helps along an unbroken chain of
@@ -364,7 +371,7 @@ express it as a signed multiply. That is also what DSP blocks do internally.
 - Only division/modulo by a **power-of-two constant** synthesizes cheaply (into
   a shift/mask). Everything else infers a divider — long latency, large area.
   Use a dedicated multi-cycle divider; see
-  [`examples/arith/divider_restoring.sv`](../examples/arith/divider_restoring.sv).
+  [`examples/arith/div_restoring.sv`](../examples/arith/div_restoring.sv).
 
 Signed division by a power of two is **not** an arithmetic right shift:
 
@@ -552,6 +559,23 @@ t   = p * q;  big = t;      // product truncated at `t`
 // ── T6: >>> on an unsigned operand ────────────────────────────────────────
 logic [7:0] m = 8'hF0;
 m >>> 4;                    // 8'h0F. `>>>` did nothing "arithmetic".
+
+// ── T6b: an unsigned ADDEND turns >>> into a logical shift ────────────────
+// This is the nastier form of T6: the operand IS declared signed, but the
+// expression around it is not, and signedness propagates DOWN into
+// context-determined operands.
+logic signed [39:0] wide, out;
+logic               inc;
+out = (wide >>> 12) + 40'(inc);   // 40'(inc) is UNSIGNED -> the whole add is
+                                  //   unsigned -> `wide` is treated as unsigned
+                                  //   -> >>> fills with ZEROS. Every negative
+                                  //   `wide` becomes a huge positive number.
+out = (wide >>> 12) + signed'(40'(inc));      // fix, inline
+// or, clearer -- give each operation its own signed context:
+logic signed [39:0] shifted, inc_ext;
+shifted = wide >>> 12;
+inc_ext = inc ? 1 : 0;
+out     = shifted + inc_ext;
 
 // ── T7: signed comparison across a port ───────────────────────────────────
 // A module port declared `input logic [7:0] v` is UNSIGNED inside the module

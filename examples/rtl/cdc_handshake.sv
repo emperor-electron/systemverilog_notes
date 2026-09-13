@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// cdc_handshake.sv
+// cdc_handshake.sv -- 4-phase handshake for a multi-bit CDC bus.
 //
 // One of the three single-signal clock-domain-crossing primitives:
 //   cdc_bit       : 2-flop synchronizer for a LEVEL. The signal must be stable

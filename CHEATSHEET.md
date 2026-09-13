@@ -637,7 +637,9 @@ module alu import alu_pkg::*; #(parameter int W = XLEN) (...);
 
 ---
 
-## 15. Processes and synchronization **[V]**
+## 15. Processes and synchronization
+
+*Simulation only — none of this section is synthesizable.*
 
 ```systemverilog
 fork ... join          // wait for all
@@ -675,7 +677,9 @@ end
 
 ---
 
-## 16. Classes and OOP **[V]**
+## 16. Classes and OOP
+
+*Simulation only — none of this section is synthesizable.*
 
 ```systemverilog
 class Packet #(type T = logic [7:0]) extends Base implements IDrivable;
@@ -713,7 +717,9 @@ Key points:
 
 ---
 
-## 17. Randomization **[V]**
+## 17. Randomization
+
+*Simulation only — none of this section is synthesizable.*
 
 ```systemverilog
 class Cfg;
@@ -800,7 +806,9 @@ values *before* any change at that clock edge, which is why they match
 
 ---
 
-## 19. Coverage **[V]**
+## 19. Coverage
+
+*Simulation only — none of this section is synthesizable.*
 
 ```systemverilog
 covergroup cg_txn @(posedge clk);
@@ -868,7 +876,9 @@ $setup $hold $recovery $removal $width $skew $period  (in `specify` blocks)
 
 ---
 
-## 21. DPI and program blocks **[V]**
+## 21. DPI and program blocks
+
+*Simulation only — none of this section is synthesizable.*
 
 ```systemverilog
 import "DPI-C" function int c_model(input int a, output int b);

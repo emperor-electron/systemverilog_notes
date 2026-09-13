@@ -1,0 +1,14 @@
+# Build products
+build/
+obj_dir/
+*.vvp
+*.vcd
+*.fst
+*.wlf
+work/
+transcript
+
+# Editor / OS
+*~
+.*.swp
+.DS_Store

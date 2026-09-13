@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// cdc_pulse.sv
+// cdc_pulse.sv -- toggle-based pulse synchronizer.
 //
 // One of the three single-signal clock-domain-crossing primitives:
 //   cdc_bit       : 2-flop synchronizer for a LEVEL. The signal must be stable

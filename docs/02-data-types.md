@@ -19,6 +19,15 @@ reset bug simulates perfectly, and it fails in silicon. **Use `logic` for RTL.**
 Use 2-state types in testbench scoreboards, loop indices, and reference models
 where the extra speed is real and `X` would only be noise.
 
+**The same caveat applies to your simulator, not just your types.** Verilator is
+a 2-state engine: it does not model `X` propagation at all, and evaluates
+`x ? a : b` by simply taking one branch. It is excellent for linting and for
+fast regressions, but it cannot find an uninitialized-register bug, and a
+"passes in Verilator" result says nothing about X-safety. Run at least one
+4-state simulation (Questa, VCS, Xcelium, Icarus) over your reset and
+power-on sequences. `examples/arith/signedness_demo.sv` demonstrates the
+difference: it skips its X-merge check when it detects a 2-state engine.
+
 `Z` means "not driven". It matters only for nets with multiple drivers and for
 tri-state I/O pads.
 
