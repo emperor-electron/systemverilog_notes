@@ -12,3 +12,15 @@ transcript
 *~
 .*.swp
 .DS_Store
+
+# XSIM
+xsim.dir/
+*.jou
+*.pb
+*.wdb
+webtalk*
+
+# SymbiYosys output. sby creates a directory per (.sby file, task) pair; the
+# formal/ directory itself contains only source files, so ignore every
+# subdirectory rather than trying to enumerate task names.
+formal/*/

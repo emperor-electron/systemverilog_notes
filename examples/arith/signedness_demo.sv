@@ -5,12 +5,12 @@
 // Each check asserts the value the LRM requires. If your simulator disagrees
 // with one of these, that is worth knowing about.
 //
-// Run it:
-//   $ iverilog -g2012 -o demo signedness_demo.sv && ./demo
-//   $ verilator --binary --timing signedness_demo.sv && obj_dir/Vsignedness_demo
+// Run it (XSIM):
+//   $ xvlog -sv signedness_demo.sv && xelab signedness_demo -s sim && xsim sim -R
+// or simply:  make signedness
 //
-// (Note the leading "$ ": a comment line STARTING with the word "verilator"
-//  is parsed as a lint pragma and will be rejected as unknown.)
+// XSIM is 4-state, so the X-propagation check below is live. The check detects
+// a 2-state engine and skips itself rather than reporting a false failure.
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 
@@ -140,8 +140,9 @@ module signedness_demo;
   //   s.sum()                    ->  44   (wrapped in `byte`)
   //   s.sum() with (int'(item))  -> 300   (accumulated in `int`)
   //
-  // Icarus does not implement array reduction methods, so this check spells
-  // the accumulation out by hand -- the arithmetic is identical.
+  // Spelled out by hand rather than calling .sum(): array reduction methods are
+  // unevenly supported across simulators, and the arithmetic -- which is the
+  // point -- is identical either way.
   task automatic t8_array_sum();
     byte s [0:2];
     byte narrow_acc;

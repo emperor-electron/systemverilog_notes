@@ -61,8 +61,12 @@ module async_fifo #(
   logic [AW:0] wgray_sync, rgray_sync;
   logic        wfull_next, rempty_next;
 
+  // Written with the legacy assign-to-the-function-name form rather than
+  // `return b ^ (b >> 1);`. Both are legal SystemVerilog, but Yosys's
+  // open-source frontend does not accept `return` inside a function -- and
+  // this module is one of the formal targets in formal/. See docs/25.
   function automatic logic [AW:0] bin2gray(input logic [AW:0] b);
-    return b ^ (b >> 1);
+    bin2gray = b ^ (b >> 1);
   endfunction
 
   // ---- write domain ---------------------------------------------------------

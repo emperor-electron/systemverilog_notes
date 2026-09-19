@@ -13,9 +13,7 @@
 // active edge would race the DUT's non-blocking updates -- see docs/15, and
 // fifo_tb.sv for the clocking-block alternative.
 //
-// Run it:
-//   $ iverilog -g2012 -gsupported-assertions -o arith_tb \
-//       -y ../rtl -y ../arith ../tb/arith_tb.sv && ./arith_tb
+// Run it:  make arith
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 

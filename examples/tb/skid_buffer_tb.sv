@@ -13,10 +13,12 @@
 // also high. That self-synchronising property is why handshakes are preferred
 // over raw flags at module boundaries.
 //
-// Run it:
-//   $ verilator --binary --timing -Wno-fatal --timescale 1ns/1ps \
-//       -o skid_buffer_tb ../rtl/skid_buffer.sv skid_buffer_tb.sv \
-//       && obj_dir/skid_buffer_tb
+// Run it:  make skid
+//
+// This block is ALSO proved unbounded in formal/skid_buffer_fv.sby: no loss, no
+// duplication, no reordering, for all time. The two are complementary -- formal
+// settles correctness, and this testbench measures the THROUGHPUT that is the
+// block's whole reason to exist, which formal does not address.
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 

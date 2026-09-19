@@ -19,14 +19,23 @@ reset bug simulates perfectly, and it fails in silicon. **Use `logic` for RTL.**
 Use 2-state types in testbench scoreboards, loop indices, and reference models
 where the extra speed is real and `X` would only be noise.
 
-**The same caveat applies to your simulator, not just your types.** Verilator is
-a 2-state engine: it does not model `X` propagation at all, and evaluates
-`x ? a : b` by simply taking one branch. It is excellent for linting and for
-fast regressions, but it cannot find an uninitialized-register bug, and a
-"passes in Verilator" result says nothing about X-safety. Run at least one
-4-state simulation (Questa, VCS, Xcelium, Icarus) over your reset and
-power-on sequences. `examples/arith/signedness_demo.sv` demonstrates the
-difference: it skips its X-merge check when it detects a 2-state engine.
+**The same caveat applies to your tools, not just your types.** A 2-state engine
+does not model `X` propagation at all — it evaluates `x ? a : b` by simply taking
+one branch — so it cannot find an uninitialized-register bug, and passing on one
+says nothing about X-safety.
+
+XSIM, which this repository uses for simulation, is **4-state**, so the `X`
+semantics described here are live: `examples/arith/signedness_demo.sv` checks
+that `x ? 4'b1100 : 4'b1010` really does give `4'b1xx0`, and the check detects
+and skips itself on a 2-state engine.
+
+The formal flow (SymbiYosys) is **2-valued** — there is no `X` in it at all.
+That is not the loss it appears to be: formal starts from an *arbitrary* initial
+state, which asks the same question more strongly. Where simulation needs an `X`
+to notice that a register was never initialised, induction simply tries every
+possible initial value. See
+[docs/24](24-dft-clocking-and-x-discipline.md#8-x-optimism-and-x-pessimism) and
+[docs/25](25-formal-verification-with-sby.md).
 
 `Z` means "not driven". It matters only for nets with multiple drivers and for
 tri-state I/O pads.

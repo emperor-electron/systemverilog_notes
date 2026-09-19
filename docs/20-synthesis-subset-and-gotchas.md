@@ -306,9 +306,28 @@ endmodule
 | No hierarchical references in RTL | catches non-synthesizable code |
 | All subroutines `automatic` | catches reentrancy bugs |
 
-Verilator with `-Wall` catches most of these and is free. Run it on RTL even in
-a commercial flow — it is fast enough to run on every save.
+No single open-source tool catches all of these. This repository's `make lint`
+uses the two it has:
 
 ```bash
-verilator --lint-only -Wall --timing -I./rtl rtl/*.sv
+# Vivado's analyser: syntax, elaboration, undeclared identifiers (which
+# `default_nettype none` turns every typo into).
+xvlog -sv <package files> <rtl files>
+
+# Yosys (ships with SymbiYosys): inferred latches, which xvlog does NOT report.
+yosys -p "read_verilog -sv -DSYNTHESIS m.sv; hierarchy -top m; proc"
+#   -> "ERROR: Latch inferred for signal ... from always_comb process"
 ```
+
+**Neither reports width mismatches**, which is the single most valuable check in
+the list above and the subject of [docs/17](17-signed-unsigned-arithmetic.md).
+That is a real gap in this toolchain, not an oversight: a commercial linter
+(Spyglass, Lint, Questa AutoCheck) or Verilator's `-Wall` covers it, and if one
+is available it is worth adding purely for `WIDTHEXPAND`/`WIDTHTRUNC`.
+
+The gap is partly closed from the other direction: `examples/arith/width_rules_tb.sv`
+and `signedness_demo.sv` pin the language rules down with runnable assertions,
+and the formal proofs in `formal/` catch width bugs that change behaviour — a
+truncated product or an out-of-range part-select fails an equivalence proof
+immediately. `div_const.sv` had exactly such a bug, and formal found it on the
+first run.

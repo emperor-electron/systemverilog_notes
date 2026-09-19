@@ -356,6 +356,13 @@ reimplementing it in SystemVerilog would just create a second thing to debug.
 ### Build
 
 ```bash
+# XSIM (Vivado) -- the simulator this repository uses.
+# xsc compiles the C into a shared object that xelab then links in.
+xsc dpi.c                                   # -> xsim.dir/work/xsc/dpi.so
+xvlog -sv tb.sv dut.sv
+xelab tb -sv_lib dpi -s sim
+xsim sim -R
+
 # Questa
 vlog -sv tb.sv dut.sv
 gcc -shared -fPIC -o libdpi.so dpi.c -I$QUESTA_HOME/include
@@ -363,10 +370,14 @@ vsim -sv_lib libdpi tb
 
 # VCS
 vcs -sverilog tb.sv dut.sv dpi.c
-
-# Verilator
-verilator --cc --exe --build dut.sv tb.cpp dpi.c
 ```
+
+None of the examples in this repository use DPI: the floating-point reference in
+[`fp_tb.sv`](../examples/tb/fp_tb.sv) uses `shortreal` and the simulator's own
+host-FPU arithmetic instead, which needs no C at all. DPI becomes worthwhile
+when the reference model already exists in C — a codec, a cipher, an ISA
+simulator — or when you need rounding-mode control that `shortreal` cannot
+express (see [docs/19 §16](19-floating-point-hardware.md#16-verification)).
 
 ## 8. VPI / DPI / PLI
 

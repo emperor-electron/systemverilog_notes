@@ -9,8 +9,9 @@
 // The whole game is knowing which positions are context-determined (so a wide
 // destination rescues them) and which are self-determined (so it does not).
 //
-// Run it:
-//   $ iverilog -g2012 -o wr width_rules_tb.sv && ./wr
+// Run it (XSIM):
+//   $ xvlog -sv width_rules_tb.sv && xelab width_rules_tb -s sim && xsim sim -R
+// or simply:  make width_rules
 //
 // See docs/17-signed-unsigned-arithmetic.md section 3.
 // -----------------------------------------------------------------------------

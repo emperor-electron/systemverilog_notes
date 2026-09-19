@@ -786,8 +786,8 @@ a_data_x_when_valid: assert property (@(posedge clk) disable iff (!rst_n)
 That second assertion is remarkably effective in a 4-state simulator: if a
 sideband signal is off by a cycle, the uninitialized or flushed slot shows up as
 `X` exactly when `valid` says it should be real data. It finds latency-matching
-bugs on the first run. It finds nothing in Verilator, which is 2-state — see
-[docs/02](02-data-types.md).
+bugs on the first run — XSIM is 4-state, so it works here. It finds nothing on a
+2-state engine; see [docs/02](02-data-types.md).
 
 ---
 

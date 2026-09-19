@@ -1,0 +1,23 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 24
+prove: mode prove
+cover: mode cover
+cover: depth 24
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL div_restoring.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL div_restoring_fv.sv
+prep -top div_restoring_fv
+
+[files]
+../examples/arith/div_restoring.sv
+div_restoring_fv.sv

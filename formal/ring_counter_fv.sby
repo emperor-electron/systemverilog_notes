@@ -1,0 +1,23 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 16
+prove: mode prove
+cover: mode cover
+cover: depth 16
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL ring_counter.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL ring_counter_fv.sv
+prep -top ring_counter_fv
+
+[files]
+../examples/rtl/ring_counter.sv
+ring_counter_fv.sv

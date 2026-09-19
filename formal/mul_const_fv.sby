@@ -1,0 +1,16 @@
+[tasks]
+bmc
+
+[options]
+bmc: mode bmc
+bmc: depth 2
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL mul_const.sv
+prep -top mul_const
+
+[files]
+../examples/rtl/mul_const.sv

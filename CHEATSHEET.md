@@ -33,6 +33,8 @@ Deep dives live in [`docs/`](docs/); runnable code lives in [`examples/`](exampl
 23. [Scheduling semantics](#23-scheduling-semantics)
 24. [Arithmetic quick reference](#24-arithmetic-quick-reference)
 25. [Pipelining and timing idioms](#25-pipelining-and-timing-idioms)
+26. [Structural technique idioms](#26-structural-technique-idioms)
+27. [Formal verification with sby](#27-formal-verification-with-sby)
 
 ---
 
@@ -1166,7 +1168,191 @@ always_ff @(posedge clk) if (en) q <= d;                 // clock ENABLE; the
 ```systemverilog
 // In a 4-state simulator this finds latency-matching bugs on the first run:
 // a sideband signal off by one cycle shows up as X exactly when valid claims
-// the data is real. (Useless in Verilator, which is 2-state -- see docs/02.)
+// the data is real. XSIM is 4-state so this works; useless on a 2-state
+// engine -- see docs/02.
 a_no_x: assert property (@(posedge clk) disable iff (!rst_n)
   valid_o |-> !$isunknown(data_o));
 ```
+
+---
+
+## 26. Structural technique idioms
+
+Full treatment: [docs/23](docs/23-structural-design-techniques.md),
+[docs/24](docs/24-dft-clocking-and-x-discipline.md).
+
+### Replace the operator with a structure
+
+```systemverilog
+y = x * 10;                  // -> (x<<3) + (x<<1)          one adder
+y = x * 7;                   // -> (x<<3) - x               CSD: one subtract
+q = n / 10;                  // -> (n * M) >> S             one multiply
+                             //    L=ceil(log2 D), S=W+L, M=ceil(2^S/D)
+                             //    prod needs S+W bits, NOT W+MW
+q = n / 8;  r = n % 8;       // -> n >> 3 ;  n & 3'b111     free
+bcd = f(bin);                // -> double dabble: per bit, add 3 to any
+                             //    digit >= 5, then shift
+sorted = sort(a);            // -> compare-exchange network, fixed depth
+```
+
+### Compute it at elaboration, not at run time
+
+```systemverilog
+// The derivation IS the source. Change a parameter, the table follows.
+function automatic logic [DW-1:0] recip(input int unsigned i);
+  recip = (i == 0) ? '1 : DW'(((64'd1 << FRAC) + (64'(i) >> 1)) / 64'(i));
+endfunction
+
+for (genvar i = 0; i < (1 << AW); i++) begin : g_init
+  localparam logic [DW-1:0] E = recip(i);   // folded; no divider in hardware
+  assign rom[i] = E;
+end
+```
+
+### Counters
+
+| Need | Use | Cost |
+|---|---|---|
+| the value | binary | `log2 N` flops + carry chain + decode at every use |
+| ≤16 states, no value | **ring (one-hot)** | `N` flops, **zero decode** |
+| half that | Johnson | `N/2` flops, 2-input decode |
+| CDC pointer | **Gray** | one bit changes per step |
+| N states, order irrelevant | **LFSR** | no carry chain; period `2^W - 1` |
+
+```systemverilog
+// Self-correcting ring: recovers from ANY illegal state within N cycles.
+assign inject = SELF_CORRECT ? (~|q[N-2:0]) : q[N-1];
+always_ff @(posedge clk or negedge rst_n)
+  if      (!rst_n) q <= {{(N-1){1'b0}}, 1'b1};
+  else if (en)     q <= {q[N-2:0], inject};
+```
+
+### FPGA shift registers (SRL): 1 LUT per 16–32 stages
+
+```systemverilog
+always_ff @(posedge clk)                  // NO reset, NO taps, ONE enable
+  if (en) sr <= {sr[DEPTH-2:0], din};
+assign dout = sr[DEPTH-1];                // only the last stage is read
+```
+
+Break any of those three and you get flip-flops instead — 16–32× the area.
+
+### Microcode past ~15 states
+
+```systemverilog
+typedef struct packed {
+  logic bus_req, wr_en, done, branch;   // control outputs ARE the ROM word
+  logic [2:0]     csel;
+  logic [PCW-1:0] targ;
+} uword_t;
+// A WAIT is "branch to myself while the condition is NOT yet true" --
+// hence the inverted condition selects. Branching on the true sense makes
+// every wait state fall through, and every data check still passes.
+```
+
+### DFT and clocking: the hard rules
+
+```systemverilog
+assign gclk = clk & en;                     // NEVER -- glitchy, unscannable
+always_ff @(posedge div_q) ...              // NEVER -- RTL-generated clock
+always_ff @(posedge clk) if (en) q <= d;    // ALWAYS -- the tool inserts an ICG
+```
+
+- every clock and reset controllable **from a pin** in test mode
+- no latches, no combinational loops, no internal tri-state
+- FSMs need a recovering `default`; ring counters need self-correction
+- memories need a **functional** write path, not just `initial $readmemh`
+
+### X-optimism vs X-pessimism
+
+| | Effect | Consequence |
+|---|---|---|
+| **X-optimism** (`casex`, `bit` in RTL, 2-state sim) | bug hidden | **ships** |
+| **X-pessimism** (gate-level sim) | false failure | wastes time |
+
+```systemverilog
+// The trip-wire, at every module boundary:
+a_no_x: assert property (@(posedge clk) disable iff (!rst_n)
+  valid |-> !$isunknown(data));
+```
+
+---
+
+## 27. Formal verification with sby
+
+Full treatment: [docs/25](docs/25-formal-verification-with-sby.md).
+
+### Modes
+
+| Mode | Pass means |
+|---|---|
+| `bmc` | no counterexample within `depth` cycles of reset. **Exhaustive for combinational logic** |
+| `prove` | holds for **all time** (k-induction) |
+| `cover` | the state is reachable — guards against vacuous asserts |
+
+### Yosys's frontend rejects all of SVA's temporal layer
+
+```systemverilog
+// SVA (XSIM)                        Yosys-compatible
+a |-> b                           // assert (!a || b);
+a |=> b                           // assert (!$past(a) || b);
+a |=> $stable(x)                  // assert (!$past(a) || (x == $past(x)));
+@(posedge clk) disable iff (!rst) // always @(posedge clk) if (rst) begin ... end
+```
+
+Also rejected: `return` in a function, a local var with an initialiser in a
+function, `foreach`, `string` parameters, unpacked array **ports**,
+`$bits(type)`, named assignment patterns `'{a:1}`.
+
+> **A hierarchical reference into a submodule silently reads the wrong net.**
+> It does not error. Properties needing internal state must live *inside* the
+> module, under `` `ifdef FORMAL ``.
+
+### The harness pattern
+
+```systemverilog
+logic init = 1'b1;                       // a defined starting point
+always @(posedge clk) init <= 1'b0;
+always @* if (init) assume (!rst_n);     // after cycle 0, rst_n is free
+
+logic past_ok = 1'b0;                    // $past is junk in cycle 0
+always @(posedge clk) past_ok <= 1'b1;
+```
+
+Harness inputs are **undriven** — the solver drives them. Anything you drive is
+something you are not verifying.
+
+### assume vs assert
+
+```systemverilog
+// The FIFO does not PREVENT overflow, it only reports `full`. Writing while
+// full is the environment's contract violation -> assume, not assert.
+always @* if (full) assume (!wr_en);
+```
+
+### bmc passes, prove fails
+
+That means **no bug — the invariant set is too weak**. Induction starts from an
+*arbitrary* state; anything unpinned, the solver invents. Add invariants that
+describe the reachable state space:
+
+```systemverilog
+f_occupancy: assert ((in_seq - out_seq) == (DW'(out_valid) + DW'(skid_valid)));
+f_no_orphan: assert (!skid_valid || out_valid);
+f_skid_val : assert (!skid_valid || (skid_data == out_seq + 1'b1));
+```
+
+And when the property genuinely is not an invariant (a self-correcting counter),
+split it: **preservation** (inductive, in the module) + **base case** (BMC from
+reset, in the harness).
+
+### Sequence numbering proves data integrity in one assertion
+
+```systemverilog
+always @* assume (in_data == in_seq);          // payload IS the sequence number
+f_stream : assert (!out_valid || (out_data == out_seq));
+//  a gap => loss;  a repeat => duplication;  out of order => reordering
+```
+
+Sound only because the datapath is **data-independent** — the control never
+inspects the payload.

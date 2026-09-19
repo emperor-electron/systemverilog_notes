@@ -21,10 +21,7 @@
 //   * NaN payloads are permitted to differ between implementations, so NaN
 //     results are compared by class rather than by bit pattern.
 //
-// Run it:
-//   $ iverilog -g2012 -gsupported-assertions -o fp_tb \
-//       ../arith/fp_pkg.sv ../arith/fp_classify.sv ../arith/fp_add.sv \
-//       ../arith/fp_mul.sv fp_tb.sv && ./fp_tb
+// Run it:  make fp
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 

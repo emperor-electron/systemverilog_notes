@@ -4,8 +4,8 @@ An outline of the SystemVerilog HDL (IEEE 1800-2023), with a one-page
 cheatsheet, per-topic deep dives, and a library of working, verified example
 modules.
 
-Every example in this repository is lint-clean under Verilator `-Wall` and is
-exercised by a self-checking testbench. `make` runs the whole thing.
+Every example is lint-clean, exercised by a self-checking testbench under XSIM,
+and — where the tool can read it — proved with SymbiYosys. `make` runs the lot.
 
 ---
 
@@ -14,10 +14,11 @@ exercised by a self-checking testbench. `make` runs the whole thing.
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 22 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 50 synthesizable modules, 2 packages, 2 runnable language demos, and 7 testbenches, all verified. See [examples/README.md](examples/README.md). |
+| **[docs/](docs/)** | 25 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[examples/](examples/)** | 58 synthesizable modules, 2 packages, 2 runnable language demos, 8 testbenches and 14 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
-Two documents on making designs fast rather than merely correct:
+Three documents on making designs fast, small and buildable rather than merely
+correct:
 
 - **[Pipelining](docs/21-pipelining.md)** — the transformation, the
   latency-matching discipline that keeps it safe, retiming, elastic pipelines,
@@ -25,6 +26,16 @@ Two documents on making designs fast rather than merely correct:
 - **[Timing closure and optimization](docs/22-timing-closure-and-optimization.md)**
   — diagnosing *which* path is slow before touching it, then the catalogue of
   structural fixes, plus area and power efficiency.
+- **[Structural design techniques](docs/23-structural-design-techniques.md)** —
+  replacing expensive operators with structure: constant multiply and divide,
+  double dabble, sorting networks, ROMs computed at elaboration, microcode.
+
+And one on what makes a chip testable at all:
+
+- **[DFT, clocking and X discipline](docs/24-dft-clocking-and-x-discipline.md)**
+  — what scan demands of your RTL, why a clock may never come from logic, and
+  the difference between X-optimism (hides bugs, ships) and X-pessimism (wastes
+  time).
 
 And three on arithmetic, which the cheatsheet cannot do justice to:
 
@@ -93,60 +104,81 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 |---|---|
 | [21](docs/21-pipelining.md) | What pipelining buys, latency matching, valid/stall/flush, where to cut, retiming, elastic pipelines and skid buffers, why loops cannot be pipelined, hazards and forwarding, variable latency, pipelining memory and arithmetic, a 12-entry bug checklist |
 | [22](docs/22-timing-closure-and-optimization.md) | Reading a timing report, a path taxonomy for diagnosis, logic restructuring, late-arriving signals, carry-save, speculation, control-path tricks, fanout replication, memory paths, reset strategy, multicycle/false-path constraints, physical awareness, area and power efficiency, 13 anti-patterns |
+| [23](docs/23-structural-design-techniques.md) | Elaboration-time tables, constant multiply (CSD) and constant divide (reciprocal), double dabble, sorting networks and the 0-1 principle, ring/Johnson/LFSR counters, SRL inference, microcoded control |
+| [24](docs/24-dft-clocking-and-x-discipline.md) | What scan demands of RTL, generated and derived clocks, clock enables and ICG cells, glitch-free clock muxing, reset for test, memory BIST, X-optimism vs X-pessimism, three checklists |
+
+### Verification
+
+| Doc | Topic |
+|---|---|
+| [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
 
 ---
 
 ## Running it
 
 ```bash
-make            # lint everything, then run every test
-make lint       # Verilator -Wall over all 54 example files
-make sim        # run all 9 testbenches
-make fp         # just the floating-point regression
+make            # lint, then simulate, then prove
+make lint       # xvlog analysis + yosys structural checks
+make sim        # all 10 testbenches under XSIM
+make formal     # all 30 proof tasks under SymbiYosys
+make fp         # one target (see the Makefile for the list)
 make clean
 ```
 
-Requires [Verilator](https://verilator.org) 5.x and
-[Icarus Verilog](https://steveicarus.github.io/iverilog/) 12+. Both are open
-source; on Debian/Ubuntu, `apt install verilator iverilog`, or use the
-[OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build) for current
-builds.
-
-### Why two simulators
-
-Neither one alone is sufficient, and the reason is worth internalizing:
-
-| | Icarus Verilog | Verilator |
-|---|---|---|
-| Value system | **4-state** — models `X` propagation | 2-state |
-| `shortreal` / `$bitstoshortreal` | **yes** | no |
-| Clocking blocks | no | **yes** (with `--timing`) |
-| Concurrent assertions | booleans only — `\|->` and `\|=>` are **rejected** | **full SVA** |
-| Speed | modest | **very fast** |
-| Linting | minimal | **excellent** |
-
-Verilator's 2-state engine cannot find an uninitialized-register bug, and
-evaluates `x ? a : b` by simply taking one branch — so "passes in Verilator"
-says nothing about X-safety. Conversely, Icarus rejects the implication
-operators outright, so any module whose assertions use `|->` or `|=>` has to be
-simulated in Verilator — which is why `pipeline_tb` and the FIFO tests run
-there. The language demos detect a 2-state engine and
-skip the one check it cannot model; `make xcheck` runs them on Verilator to show
-exactly that happening. See [docs/02](docs/02-data-types.md).
-
-### Tool flags that are easy to get wrong
+Requires **Vivado** (for XSIM) and the **[OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build)**
+or a separate [SymbiYosys](https://github.com/YosysHQ/sby) install. The Makefile
+sources Vivado's settings script from `VIVADO_SETTINGS`; override it if your
+install lives elsewhere:
 
 ```bash
-# Icarus: -y alone silently finds nothing, because the default library
-# suffix is .v -- you need -Y.sv as well.
-iverilog -g2012 -gsupported-assertions -Y.sv -y examples/rtl -o out tb.sv
-
-# Verilator: -y needs file name == module name, which is why this repo uses
-# one module per file.
-verilator --binary --timing --timescale 1ns/1ps -y examples/rtl tb.sv
+make VIVADO_SETTINGS=/opt/Xilinx/Vivado/2024.1/settings64.sh
 ```
 
----
+### The toolchain
+
+| | Used for | Why |
+|---|---|---|
+| **XSIM** (Vivado Simulator) | all simulation | 4-state, full SVA, `shortreal`, clocking blocks — everything here needs, in one tool |
+| **SymbiYosys** (`sby`) | all formal proofs | BMC, unbounded induction, and reachability, with boolector/z3/yices |
+| **xvlog** | lint: syntax, elaboration, undeclared identifiers | ships with XSIM |
+| **yosys** | lint: inferred latches | ships with `sby`; xvlog does not report these |
+
+`xvlog` catches every hard error and, with `` `default_nettype none ``, every
+typo. It does **not** report width mismatches — see
+[docs/20](docs/20-synthesis-subset-and-gotchas.md#4-lint-rules-worth-enforcing)
+for what that gap costs and how the formal proofs partly close it.
+
+### Two dialects of assertion, and why
+
+SVA's temporal layer — `assert property` with a clocking event, `|->`, `|=>`,
+sequences, `default clocking` — is **not supported by Yosys's open-source
+frontend at all**. XSIM runs it happily. So modules that are formally verified
+carry their properties twice:
+
+```systemverilog
+`ifndef SYNTHESIS
+  // Idiomatic SVA. XSIM runs this; `sby` passes -DSYNTHESIS so Yosys skips it.
+  a_out_stable: assert property (@(posedge clk) disable iff (!rst_n)
+    (out_valid && !out_ready) |=> (out_valid && $stable(out_data)));
+`endif
+
+`ifdef FORMAL
+  // Immediate assertions with $past -- the only style Yosys accepts.
+  always @(posedge clk)
+    if (rst_n && fv_past && $past(rst_n))
+      f_out_hold : assert (!($past(out_valid) && !$past(out_ready))
+                           || (out_valid && out_data == $past(out_data)));
+`endif
+```
+
+Ten of the fifty modules are outside the formal flow entirely, each for a
+specific construct Yosys rejects (`return` in a function, `foreach`, `string`
+parameters, unpacked array ports, `$bits()` of a type, named assignment
+patterns). They are still linted and simulated.
+[docs/25 §3](docs/25-formal-verification-with-sby.md#3-the-yosys-frontend-subset)
+has the complete table, including the trap that a **hierarchical reference into
+a submodule silently reads the wrong net** rather than erroring.
 
 ## What is verified, and how
 
@@ -164,6 +196,24 @@ independently-written reference, not against itself.
 | `skid_buffer_tb` | handshake protocol compliance **and full throughput** (3998 beats in 4000 cycles) — the property a naively registered stage fails |
 | `rtl_smoke_tb` | arbiters (exhaustive + fairness), encoders (exhaustive), Gray codec, CRC-32 known-answer (`0xCBF43926`), LFSR maximal-length, counter, shift register, UART loopback |
 | `pipeline_tb` | delay lines modelled against a reference shift register under a random 40% stall pattern; flush-while-stalled; adder trees for N = 1,2,3,5,8,16 signed and unsigned; carry-save and interleaved accumulators bit-exact against a plain accumulator; operand isolation in both modes |
+| `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
+
+### Proved (SymbiYosys) — 14 modules, 30 tasks
+
+Formal does what simulation cannot: it *searches* the input space rather than
+sampling it.
+
+| Proof | What it settles |
+|---|---|
+| `arb_fixed`, `priority_encoder`, `lzc`, `gray_codec` | **exhaustive** equivalence with independently written references — `lzc` over all 2³² inputs |
+| `mul_const`, `div_const` | **exhaustive** equivalence with `*`, `/` and `%`; CSD and binary encodings proved equal |
+| `bin2bcd` | every nibble a legal digit **and** the digits equal the input |
+| `sort_network` | sortedness and multiset preservation at W=1 — **complete for every width** by Knuth's 0-1 principle |
+| `skid_buffer` | **unbounded**: no loss, no duplication, no reordering, for all time |
+| `pipe_ctrl` | **unbounded**: full equivalence with a reference shift register; flush clears even while stalled |
+| `div_restoring` | **unbounded**: `q*d + r == n` and `r < d` — the specification of integer division |
+| `gray_counter`, `ring_counter` | **unbounded**: single-bit change; one-hot preserved *and* reachable |
+| `sync_fifo` | flag/level consistency and data integrity, bounded to depth 30 (the induction is stated as not closing, rather than claimed) |
 
 Three genuine bugs were found and fixed by these testbenches while writing
 them; each is now documented at the point where it occurred, because the

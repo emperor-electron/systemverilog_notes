@@ -1,0 +1,23 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 24
+prove: mode prove
+cover: mode cover
+cover: depth 40
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL gray_counter.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL gray_counter_fv.sv
+prep -top gray_counter_fv
+
+[files]
+../examples/rtl/gray_counter.sv
+gray_counter_fv.sv

@@ -1,14 +1,17 @@
 # Examples
 
-All 54 example files are lint-clean under Verilator `-Wall` and exercised by the
+All 70 example files are lint-clean under Verilator `-Wall` and exercised by the
 testbenches in [`tb/`](tb/). `make` from the repository root runs everything.
 
-One module per file, named after the module, so that library search
-(`verilator -y`, `iverilog -Y.sv -y`) resolves instances automatically.
+One module per file, named after the module. XSIM has no library-search switch,
+so `make` analyses every source explicitly (packages first), but the convention
+still pays off for readability and for tools that do search.
 
-Note that Icarus Verilog rejects the SVA implication operators (`|->`, `|=>`)
-outright, so any module whose assertions use them must be simulated in
-Verilator. That is why `pipeline_tb` and the FIFO tests run there.
+Simulation is **XSIM** (Vivado Simulator) throughout — 4-state, full SVA,
+`shortreal`, clocking blocks. Formal proofs are **SymbiYosys**; see
+[`../formal/`](../formal/) and
+[docs/25](../docs/25-formal-verification-with-sby.md), which also lists the ten
+modules Yosys's frontend cannot read.
 
 ---
 
@@ -100,6 +103,19 @@ All three implement the same controller, so they can be compared directly.
 | [fanout_replicate.sv](rtl/fanout_replicate.sv) | register replication for a high-fanout control signal, with the `dont_touch`/`preserve` attributes that stop synthesis merging the copies back |
 | [operand_isolation.sv](rtl/operand_isolation.sv) | stop a wide datapath switching when its result is unused; hold-vs-zero modes and when each wins |
 
+### Structural techniques
+
+| File | What it shows |
+|---|---|
+| [bin2bcd.sv](rtl/bin2bcd.sv) | double dabble: binary to decimal with an adder and a shift per bit, no division. Why the magic number is 3 |
+| [mul_const.sv](rtl/mul_const.sv) | multiply by a constant with no multiplier; CSD recoding done in the elaborator turns `×255` from 8 adders into 2 |
+| [div_const.sv](rtl/div_const.sv) | divide by a constant via a reciprocal multiply — and the product-width trap that makes it silently return zeros |
+| [sort_network.sv](rtl/sort_network.sv) | a fixed compare-exchange mesh: sorting with no control logic and no variable latency |
+| [ring_counter.sv](rtl/ring_counter.sv) | one-hot counter with zero decode, and a self-correcting variant that recovers from any illegal state |
+| [srl_delay.sv](rtl/srl_delay.sv) | a delay line that maps to one LUT per 16–32 stages — and the three conditions that silently forfeit it |
+| [rom_table.sv](rtl/rom_table.sv) | a ROM whose contents are computed by a constant function at elaboration, so the derivation is the source |
+| [useq.sv](rtl/useq.sv) | a microcoded sequencer: control as a table rather than a `case`. Also documents the wait-state polarity bug that let it run the whole protocol in six cycles |
+
 ### DSP
 
 | File | What it shows |
@@ -157,15 +173,44 @@ fp32 configuration is covered by the reference model in
 
 ## `tb/` — testbenches
 
-| File | Simulator | What it demonstrates |
+| File | Tool | What it demonstrates |
 |---|---|---|
-| [fp_tb.sv](tb/fp_tb.sv) | Icarus | Using the host FPU as a golden reference via `shortreal`. Six stimulus phases, including the constrained close-exponent case that uniform random almost never reaches |
-| [arith_tb.sv](tb/arith_tb.sv) | Icarus | Divider, saturation, CORDIC, FIR, and MAC, each against an independent reference |
-| [fifo_tb.sv](tb/fifo_tb.sv) | Verilator | The **layered architecture** of [docs/16](../docs/16-verification-architecture.md): interface with clocking blocks, driver, passive monitor, queue scoreboard. Shows why a monitor needs its own all-input clocking block, and why a driver cannot trust a sampled flag |
-| [async_fifo_tb.sv](tb/async_fifo_tb.sv) | Verilator | Two unrelated clocks at four ratios; per-domain monitors; why the write side must gate combinationally on the live `wfull` |
-| [skid_buffer_tb.sv](tb/skid_buffer_tb.sv) | Verilator | A valid/ready driver needs no shadow model — and a **throughput** assertion, which is the check that actually matters here |
-| [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | Verilator | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
-| [pipeline_tb.sv](tb/pipeline_tb.sv) | Verilator | Modelling a pipeline as a reference shift register and comparing under a random stall pattern — a far stronger check than spot-checking frozen values. Also flush-while-stalled, adder trees at six values of N, and two loop-breaking accumulators bit-exact against a plain one |
+| [fp_tb.sv](tb/fp_tb.sv) | XSIM | Using the host FPU as a golden reference via `shortreal`. Six stimulus phases, including the constrained close-exponent case that uniform random almost never reaches |
+| [arith_tb.sv](tb/arith_tb.sv) | XSIM | Divider, saturation, CORDIC, FIR, and MAC, each against an independent reference |
+| [fifo_tb.sv](tb/fifo_tb.sv) | XSIM | The **layered architecture** of [docs/16](../docs/16-verification-architecture.md): interface with clocking blocks, driver, passive monitor, queue scoreboard. Shows why a monitor needs its own all-input clocking block, and why a driver cannot trust a sampled flag |
+| [async_fifo_tb.sv](tb/async_fifo_tb.sv) | XSIM | Two unrelated clocks at four ratios; per-domain monitors; why the write side must gate combinationally on the live `wfull` |
+| [skid_buffer_tb.sv](tb/skid_buffer_tb.sv) | XSIM | A valid/ready driver needs no shadow model — and a **throughput** assertion, which is the check that actually matters here |
+| [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | XSIM | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
+| [techniques_tb.sv](tb/techniques_tb.sv) | XSIM | The structural-technique modules, each against an independent reference: insertion sort, the `*` and `/` operators being replaced, a recomputed reciprocal table, and a forced-corruption test of ring-counter self-correction |
+| [pipeline_tb.sv](tb/pipeline_tb.sv) | XSIM | Modelling a pipeline as a reference shift register and comparing under a random stall pattern — a far stronger check than spot-checking frozen values. Also flush-while-stalled, adder trees at six values of N, and two loop-breaking accumulators bit-exact against a plain one |
 
 Every testbench has a global timeout, prints a definite PASS/FAIL, and
 `$fatal`s on failure so a regression cannot report success by accident.
+
+---
+
+## `../formal/` — SymbiYosys proofs
+
+14 modules, 30 tasks, run by `make formal` or `formal/run_all.sh`.
+
+| Proof | Mode | What it settles |
+|---|---|---|
+| [arb_fixed_fv](../formal/arb_fixed_fv.sv) | bmc + cover | **exhaustive** equivalence with an independent lowest-set-bit reference |
+| [priority_encoder_fv](../formal/priority_encoder_fv.sv) | bmc + cover | **exhaustive** equivalence with a reference |
+| [lzc_fv](../formal/lzc_fv.sv) | bmc + cover | **exhaustive** over all 2³² inputs |
+| [gray_codec_fv](../formal/gray_codec_fv.sv) | bmc + cover | round-trip identity, and one-bit-change across every adjacent pair including the wrap |
+| [bin2bcd_fv](../formal/bin2bcd_fv.sv) | bmc + cover | legal digits **and** correct value |
+| [mul_const_fv](../formal/mul_const_fv.sby) | bmc | **exhaustive** equivalence with `*` |
+| [div_const_fv](../formal/div_const_fv.sby) | bmc | **exhaustive** equivalence with `/` and `%` |
+| [sort_network_fv](../formal/sort_network_fv.sv) | bmc + cover | sortedness + multiset preservation at W=1 — **complete for all widths** |
+| [ring_counter_fv](../formal/ring_counter_fv.sv) | **prove** + bmc + cover | one-hot preserved *and* reachable |
+| [gray_counter_fv](../formal/gray_counter_fv.sv) | **prove** + bmc + cover | at most one bit changes per cycle, for all time |
+| [pipe_ctrl_fv](../formal/pipe_ctrl_fv.sv) | **prove** + cover | equivalence with a reference shift register; flush wins over stall |
+| [skid_buffer_fv](../formal/skid_buffer_fv.sv) | **prove** + bmc + cover | no loss, no duplication, no reordering, for all time |
+| [div_restoring_fv](../formal/div_restoring_fv.sv) | **prove** + bmc + cover | `q*d + r == n` and `r < d` |
+| [sync_fifo_fv](../formal/sync_fifo_fv.sv) | bmc + cover | flags, level and data integrity to depth 30 — induction stated as not closing rather than claimed |
+
+Properties that need a module's internal state live **inside** that module under
+`` `ifdef FORMAL ``, not in the harness. That is forced: a hierarchical reference
+into a submodule silently reads the wrong net in this flow rather than erroring.
+See [docs/25](../docs/25-formal-verification-with-sby.md).

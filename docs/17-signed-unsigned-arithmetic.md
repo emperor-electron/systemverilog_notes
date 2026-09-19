@@ -744,8 +744,13 @@ accumulate. `examples/rtl/mac_pipelined.sv` shows the canonical form.
 7. Give every intermediate a **named `localparam` width** derived from the
    inputs (`localparam int PW = AW + BW;`). Magic numbers in widths are how
    widths drift out of sync.
-8. Turn on your tool's width-mismatch lint and treat it as an error. Verilator's
-   `-Wall` (`WIDTHEXPAND`/`WIDTHTRUNC`) and most commercial linters catch the
-   entire trap catalogue above.
+8. Turn on your tool's width-mismatch lint and treat it as an error. Most
+   commercial linters, and Verilator's `-Wall` (`WIDTHEXPAND`/`WIDTHTRUNC`),
+   catch the entire trap catalogue above. Note that **neither `xvlog` nor
+   `yosys` reports width mismatches**, so this repository's `make lint` does not
+   — see [docs/20](20-synthesis-subset-and-gotchas.md#4-lint-rules-worth-enforcing).
+   Where a linter is unavailable, an equivalence proof catches the width bugs
+   that change behaviour: `div_const.sv` had an out-of-range part-select that
+   formal found immediately ([docs/23](23-structural-design-techniques.md#3-divide-by-a-constant)).
 9. In testbenches, check with `===` so an `X` fails loudly rather than
    comparing as "not equal" by accident.

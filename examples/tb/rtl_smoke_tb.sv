@@ -6,9 +6,12 @@
 // Each block is checked against an independently-written reference (a behavioural
 // model in the testbench, or a known-answer vector), not against itself.
 //
-// Run it:
-//   $ verilator --binary --timing -Wno-fatal --timescale 1ns/1ps \
-//       -o rtl_smoke_tb -y ../rtl ../tb/rtl_smoke_tb.sv && obj_dir/rtl_smoke_tb
+// Run it:  make smoke
+//
+// Several of these blocks are also proved exhaustively in formal/ -- arb_fixed,
+// priority_encoder, lzc and gray_codec. The exhaustive loops here are kept
+// because they are cheap and they exercise the same logic at parameter values
+// the proofs are not elaborated with.
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 

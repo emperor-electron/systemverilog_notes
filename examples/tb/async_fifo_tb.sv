@@ -20,10 +20,7 @@
 //    accepted, the read monitor pops and compares. Neither monitor knows
 //    anything about the drivers.
 //
-// Run it:
-//   $ verilator --binary --timing -Wno-fatal --timescale 1ns/1ps \
-//       -o async_fifo_tb ../rtl/async_fifo.sv async_fifo_tb.sv \
-//       && obj_dir/async_fifo_tb
+// Run it:  make async_fifo
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 

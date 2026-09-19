@@ -17,9 +17,10 @@
 // no clocking block, so sampling on the active edge would race the DUT's
 // non-blocking updates (docs/15).
 //
-// Run it:
-//   $ iverilog -g2012 -gsupported-assertions -Y.sv -y ../rtl -y ../arith \
-//       -o pipeline_tb pipeline_tb.sv && ./pipeline_tb
+// Run it:  make pipeline
+//
+// pipe_ctrl is additionally proved unbounded in formal/pipe_ctrl_fv.sby against
+// a reference shift register.
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 

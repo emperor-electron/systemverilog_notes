@@ -14,12 +14,7 @@
 // has no handle on the driver, so a driver that writes the wrong thing produces
 // a mismatch rather than being invisible.
 //
-// Requires a simulator with clocking-block support. Icarus Verilog does not
-// have one; Verilator (with --timing), Questa, VCS and Xcelium do.
-//
-// Run it:
-//   $ verilator --binary --timing -Wno-fatal \
-//       -o fifo_tb ../rtl/sync_fifo.sv fifo_tb.sv && obj_dir/fifo_tb
+// Run it:  make fifo
 // -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 

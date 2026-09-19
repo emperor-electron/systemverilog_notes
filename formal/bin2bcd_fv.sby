@@ -1,0 +1,21 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc: mode bmc
+bmc: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL bin2bcd.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL bin2bcd_fv.sv
+prep -top bin2bcd_fv
+
+[files]
+../examples/rtl/bin2bcd.sv
+bin2bcd_fv.sv

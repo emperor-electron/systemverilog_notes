@@ -1,0 +1,21 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL priority_encoder.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL priority_encoder_fv.sv
+prep -top priority_encoder_fv
+
+[files]
+../examples/rtl/priority_encoder.sv
+priority_encoder_fv.sv

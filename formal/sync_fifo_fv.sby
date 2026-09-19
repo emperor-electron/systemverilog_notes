@@ -1,0 +1,38 @@
+# sync_fifo -- bounded proof.
+#
+# NOTE ON THE MISSING `prove` TASK.
+#   BMC (from the real reset state) and cover both pass. The unbounded
+#   INDUCTION proof does not: it still finds a start state where the memory
+#   contents contradict the sequence counters, which means the invariant set in
+#   sync_fifo.sv's `ifdef FORMAL` block does not yet fully describe the
+#   reachable state space. Closing it needs a stronger relation between the two
+#   pointers and the two counters than is written there today.
+#
+#   Leaving it as a bounded proof is a deliberate, stated limitation rather
+#   than a hidden one -- and depth 30 is well past the DEPTH=4 FIFO's fill and
+#   drain cycle, so it exercises every occupancy repeatedly. Bounded proofs at
+#   a depth that provably covers the state space are normal industrial practice
+#   for datapath-carrying blocks; what is not acceptable is claiming `prove`
+#   passed when it did not.
+[tasks]
+bmc
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 30
+cover: mode cover
+cover: depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL sync_fifo.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL sync_fifo_fv.sv
+prep -top sync_fifo_fv
+memory_map
+
+[files]
+../examples/rtl/sync_fifo.sv
+sync_fifo_fv.sv

@@ -30,9 +30,11 @@ module ram_tdp #(
   input  var logic [DW-1:0] din_b,
   output var logic [DW-1:0] dout_b
 );
-  // A true dual-port RAM is genuinely written from two different clock
-  // domains. That is what the primitive does, so the multiple-driver warning
-  // is expected here and only here.
+  // A true dual-port RAM is genuinely written from two different clock domains.
+  // That is what the primitive does, so a multiple-driver warning is expected
+  // here and only here. The pragma is Verilator's spelling, kept because it is
+  // widely understood and harmless to other tools, which ignore unknown
+  // comment pragmas.
   /* verilator lint_off MULTIDRIVEN */
   logic [DW-1:0] mem [0:DEPTH-1];
   /* verilator lint_on MULTIDRIVEN */
