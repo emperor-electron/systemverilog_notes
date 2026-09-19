@@ -14,11 +14,19 @@ exercised by a self-checking testbench. `make` runs the whole thing.
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 20 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 45 synthesizable modules and 6 testbenches, all verified. See [examples/README.md](examples/README.md). |
+| **[docs/](docs/)** | 22 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[examples/](examples/)** | 50 synthesizable modules, 2 packages, 2 runnable language demos, and 7 testbenches, all verified. See [examples/README.md](examples/README.md). |
 
-The three topics the cheatsheet cannot do justice to, each with its own
-document:
+Two documents on making designs fast rather than merely correct:
+
+- **[Pipelining](docs/21-pipelining.md)** — the transformation, the
+  latency-matching discipline that keeps it safe, retiming, elastic pipelines,
+  and the three ways around a feedback loop that cannot be pipelined.
+- **[Timing closure and optimization](docs/22-timing-closure-and-optimization.md)**
+  — diagnosing *which* path is slow before touching it, then the catalogue of
+  structural fixes, plus area and power efficiency.
+
+And three on arithmetic, which the cheatsheet cannot do justice to:
 
 - **[Signed and unsigned arithmetic](docs/17-signed-unsigned-arithmetic.md)** —
   the expression width algorithm, the signedness algorithm, and a catalogue of
@@ -79,14 +87,21 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | [19](docs/19-floating-point-hardware.md) | `real`/`shortreal` limits, IEEE 754 formats, adder, multiplier, comparison, conversions, FMA, subnormals, flags, cost, ML formats, verification |
 | [20](docs/20-synthesis-subset-and-gotchas.md) | What synthesizes, 25 numbered gotchas, a file template, lint rules worth enforcing |
 
+### Performance
+
+| Doc | Topic |
+|---|---|
+| [21](docs/21-pipelining.md) | What pipelining buys, latency matching, valid/stall/flush, where to cut, retiming, elastic pipelines and skid buffers, why loops cannot be pipelined, hazards and forwarding, variable latency, pipelining memory and arithmetic, a 12-entry bug checklist |
+| [22](docs/22-timing-closure-and-optimization.md) | Reading a timing report, a path taxonomy for diagnosis, logic restructuring, late-arriving signals, carry-save, speculation, control-path tricks, fanout replication, memory paths, reset strategy, multicycle/false-path constraints, physical awareness, area and power efficiency, 13 anti-patterns |
+
 ---
 
 ## Running it
 
 ```bash
 make            # lint everything, then run every test
-make lint       # Verilator -Wall over all 45 modules
-make sim        # run all 8 testbenches
+make lint       # Verilator -Wall over all 54 example files
+make sim        # run all 9 testbenches
 make fp         # just the floating-point regression
 make clean
 ```
@@ -106,12 +121,16 @@ Neither one alone is sufficient, and the reason is worth internalizing:
 | Value system | **4-state** — models `X` propagation | 2-state |
 | `shortreal` / `$bitstoshortreal` | **yes** | no |
 | Clocking blocks | no | **yes** (with `--timing`) |
+| Concurrent assertions | booleans only — `\|->` and `\|=>` are **rejected** | **full SVA** |
 | Speed | modest | **very fast** |
 | Linting | minimal | **excellent** |
 
 Verilator's 2-state engine cannot find an uninitialized-register bug, and
 evaluates `x ? a : b` by simply taking one branch — so "passes in Verilator"
-says nothing about X-safety. The language demos detect a 2-state engine and
+says nothing about X-safety. Conversely, Icarus rejects the implication
+operators outright, so any module whose assertions use `|->` or `|=>` has to be
+simulated in Verilator — which is why `pipeline_tb` and the FIFO tests run
+there. The language demos detect a 2-state engine and
 skip the one check it cannot model; `make xcheck` runs them on Verilator to show
 exactly that happening. See [docs/02](docs/02-data-types.md).
 
@@ -144,6 +163,7 @@ independently-written reference, not against itself.
 | `async_fifo_tb` | dual-clock FIFO across four clock ratios, Gray-pointer single-bit-change property, no lost beats |
 | `skid_buffer_tb` | handshake protocol compliance **and full throughput** (3998 beats in 4000 cycles) — the property a naively registered stage fails |
 | `rtl_smoke_tb` | arbiters (exhaustive + fairness), encoders (exhaustive), Gray codec, CRC-32 known-answer (`0xCBF43926`), LFSR maximal-length, counter, shift register, UART loopback |
+| `pipeline_tb` | delay lines modelled against a reference shift register under a random 40% stall pattern; flush-while-stalled; adder trees for N = 1,2,3,5,8,16 signed and unsigned; carry-save and interleaved accumulators bit-exact against a plain accumulator; operand isolation in both modes |
 
 Three genuine bugs were found and fixed by these testbenches while writing
 them; each is now documented at the point where it occurred, because the
@@ -184,5 +204,9 @@ module foo #(
 - Explicit `signed` on everything that does arithmetic, and a named
   `localparam` for every derived width.
 - Assertions inside the RTL, guarded by `` `ifndef SYNTHESIS ``.
+- **Reset the control path, not the data path.** A datapath pipeline register
+  needs no reset (the valid bit beside it carries the meaning), and resetting it
+  costs area, costs reset routing, and blocks retiming — see
+  [docs/21 §6](docs/21-pipelining.md#6-retiming-let-the-tool-place-the-registers).
 - Suffixes: `_t` type, `_e` enum, `_n` active-low, `_q`/`_d` registered value
   and its next-state input.

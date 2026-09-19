@@ -32,6 +32,7 @@ Deep dives live in [`docs/`](docs/); runnable code lives in [`examples/`](exampl
 22. [Compiler directives](#22-compiler-directives)
 23. [Scheduling semantics](#23-scheduling-semantics)
 24. [Arithmetic quick reference](#24-arithmetic-quick-reference)
+25. [Pipelining and timing idioms](#25-pipelining-and-timing-idioms)
 
 ---
 
@@ -1024,4 +1025,148 @@ prod  = signed'(a) * signed'(b);               // both operands signed -> signed
 wide  = W2'(narrow);                           // explicit resize
 avg   = (a + b) >> 1;                          // unsigned
 avg   = $signed(a + b) >>> 1;                  // signed (rounds toward -inf)
+```
+
+---
+
+## 25. Pipelining and timing idioms
+
+Full treatment: [docs/21 — pipelining](docs/21-pipelining.md),
+[docs/22 — timing closure and optimization](docs/22-timing-closure-and-optimization.md).
+
+### The three parts of a pipeline
+
+```systemverilog
+// 1. DATA -- one register per stage.
+always_ff @(posedge clk) if (en) s2 <= f(s1);
+
+// 2. VALID -- the data's shadow. Reset it; flush clears it.
+always_ff @(posedge clk or negedge rst_n) begin
+  if      (!rst_n) valid_q <= '0;
+  else if (flush)  valid_q <= '0;                          // flush BEFORE en
+  else if (en)     valid_q <= {valid_q[N-2:0], valid_i};
+end
+
+// 3. SIDEBAND -- delayed by the SAME parameter, never a literal.
+pipe_delay #(.WIDTH($bits(tag_t)), .LATENCY(LAT)) u_tag (
+  .clk, .rst_n, .en, .din(tag_in), .dout(tag_out));
+```
+
+### Rules
+
+| Rule | Why |
+|---|---|
+| One `LATENCY` parameter, used everywhere | the moment it appears twice, one copy drifts |
+| **Reset the control path, not the data path** | saves area and reset routing, **and unblocks retiming** |
+| One global `en`, never per-stage enables | per-stage stalls duplicate or drop beats |
+| `flush` tested before `en` | else stale beats reappear when the stall lifts |
+| Gate an accumulated result on `busy` | in-flight beats are not in the total yet |
+| Expose latency as a `localparam` the consumer reads | not as a comment |
+
+### Retiming: write registers where they are obvious, let the tool move them
+
+```systemverilog
+// Bunch them at the output. Retiming pulls them back into the array.
+always_ff @(posedge clk) begin                 // NO reset -> retimable
+  stage[0] <= a * b;
+  for (int i = 1; i < PIPE; i++) stage[i] <= stage[i-1];
+end
+```
+
+Blocked by: a reset, an initial value, per-stage enables, `dont_touch`, or
+anything reading an intermediate stage (including an assertion).
+
+### A loop cannot be pipelined
+
+`acc <= acc + din` has a one-cycle feedback path. Three ways out:
+
+```systemverilog
+// (a) INTERLEAVE -- LANES partial sums, so each lane has LANES cycles.
+acc_interleaved #(.LANES(4), .PIPE(4)) u (...);   // needs LANES >= PIPE
+
+// (b) CARRY-SAVE -- keep the value as S + C; two gate levels, any width.
+assign sum = a ^ b ^ c;                           // 3:2 compressor
+assign cry = (a & b) | (b & c) | (a & c);
+
+// (c) UNROLL -- adder tree feeds one accumulate, K items per cycle.
+```
+
+### Structural fixes, cheapest first
+
+```systemverilog
+// Tree, not chain: O(log N) instead of O(N).
+assign y = (a + b) + (c + d);            // not ((a+b)+c)+d
+
+// Move the mux to the NARROW side of the expensive operator.
+assign y = a + (sel ? b : c);            // not sel ? (a+b) : (a+c)
+
+// Late-arriving signal: compute both, select at the end.
+assign y = late ? f_alt : f_base;        // not decode(late ? x : y)
+
+// Priority chain -> the adder's carry chain does it in one expression.
+assign grant = req & (~req + 1'b1);      // isolate the lowest set bit
+
+// One-hot state: consumers read a bit instead of decoding.
+assign bus_req = state[1] | state[3];
+
+// Align the address map to powers of two: a decoder becomes a bit compare.
+assign in_range = (addr[31:28] == 4'h4);
+```
+
+### Fanout
+
+```systemverilog
+// Few logic levels but large cell delays => fanout, not depth.
+set_max_fanout 32 [current_design]       // let the tool do it first
+
+// By hand, when it must be tied to a floorplan. dont_touch is REQUIRED --
+// identical flops are exactly what resource sharing merges back.
+(* dont_touch = "true" *) (* preserve *) logic [W-1:0] rep_q;
+```
+
+### Elastic vs fixed latency
+
+| | Fixed + global stall | Valid/ready + skid buffer |
+|---|---|---|
+| Area | lower | 2 flops/stage/bit |
+| Composability | poor (one stall fans out everywhere) | good (purely local) |
+| Variable-latency stages | no | yes |
+
+```systemverilog
+// Register BOTH directions without losing throughput. Also the right element
+// for breaking a long wire, because the handshake survives.
+skid_buffer #(.DW(DW)) u (.clk, .rst_n,
+  .in_valid, .in_data, .in_ready, .out_valid, .out_data, .out_ready);
+
+// The AXI-Stream rule that makes handshakes composable:
+a_stable: assert property (@(posedge clk) disable iff (!rst_n)
+  (valid && !ready) |=> (valid && $stable(data)));
+```
+
+### Power
+
+```systemverilog
+assign gclk = clk & en;  always_ff @(posedge gclk) ...   // NEVER: glitchy
+always_ff @(posedge clk) if (en) q <= d;                 // clock ENABLE; the
+                                                         // tool inserts an ICG
+```
+
+### Diagnose before optimizing
+
+| Report says | Cause | Fix |
+|---|---|---|
+| Many logic levels (>15) | depth | pipeline, restructure |
+| Few levels, big cell delays | fanout | replicate |
+| Few levels, big net delays | distance / congestion | floorplan, pipeline the wire |
+| Endpoint is an accumulator | feedback loop | interleave, carry-save |
+| Got worse after pipelining | a reset is blocking retiming | drop the datapath reset |
+
+### The trip-wire assertion
+
+```systemverilog
+// In a 4-state simulator this finds latency-matching bugs on the first run:
+// a sideband signal off by one cycle shows up as X exactly when valid claims
+// the data is real. (Useless in Verilator, which is 2-state -- see docs/02.)
+a_no_x: assert property (@(posedge clk) disable iff (!rst_n)
+  valid_o |-> !$isunknown(data_o));
 ```

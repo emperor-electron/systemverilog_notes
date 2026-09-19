@@ -1,10 +1,14 @@
 # Examples
 
-All 45 modules are lint-clean under Verilator `-Wall` and exercised by the
+All 54 example files are lint-clean under Verilator `-Wall` and exercised by the
 testbenches in [`tb/`](tb/). `make` from the repository root runs everything.
 
 One module per file, named after the module, so that library search
 (`verilator -y`, `iverilog -Y.sv -y`) resolves instances automatically.
+
+Note that Icarus Verilog rejects the SVA implication operators (`|->`, `|=>`)
+outright, so any module whose assertions use them must be simulated in
+Verilator. That is why `pipeline_tb` and the FIFO tests run there.
 
 ---
 
@@ -84,6 +88,18 @@ All three implement the same controller, so they can be compared directly.
 | [uart_tx.sv](rtl/uart_tx.sv) | 8N1 transmitter |
 | [uart_rx.sv](rtl/uart_rx.sv) | 8N1 receiver: recovers the bit clock from the start edge and samples at each bit's **midpoint** |
 
+### Pipelining and timing closure
+
+| File | What it shows |
+|---|---|
+| [pipe_delay.sv](rtl/pipe_delay.sv) | parameterized N-cycle delay line — the latency-matching block, and the source of most pipeline bugs when it is missing. `LATENCY(0)` degenerates to a wire on purpose; `RESET(0)` keeps datapath flops out of the reset tree and retimable |
+| [pipe_ctrl.sv](rtl/pipe_ctrl.sv) | valid propagation, global stall, and flush. Shows why `flush` must be tested **before** `en`, with the assertion that catches it |
+| [adder_tree.sv](rtl/adder_tree.sv) | recursive balanced tree: depth `ceil(log2(N))` instead of `N-1`, handles non-power-of-two `N`, and `PIPE(1)` gives one balanced register per level for free |
+| [csa_accumulator.sv](rtl/csa_accumulator.sv) | carry-save accumulation: two gate levels per accumulate **regardless of width**, because the carry is never propagated. The 3:2 compressor a Wallace tree is built from |
+| [acc_interleaved.sv](rtl/acc_interleaved.sv) | breaking a feedback loop by interleaving — the general answer to "my accumulator's adder is too slow", since a loop cannot be pipelined |
+| [fanout_replicate.sv](rtl/fanout_replicate.sv) | register replication for a high-fanout control signal, with the `dont_touch`/`preserve` attributes that stop synthesis merging the copies back |
+| [operand_isolation.sv](rtl/operand_isolation.sv) | stop a wide datapath switching when its result is unused; hold-vs-zero modes and when each wins |
+
 ### DSP
 
 | File | What it shows |
@@ -149,6 +165,7 @@ fp32 configuration is covered by the reference model in
 | [async_fifo_tb.sv](tb/async_fifo_tb.sv) | Verilator | Two unrelated clocks at four ratios; per-domain monitors; why the write side must gate combinationally on the live `wfull` |
 | [skid_buffer_tb.sv](tb/skid_buffer_tb.sv) | Verilator | A valid/ready driver needs no shadow model — and a **throughput** assertion, which is the check that actually matters here |
 | [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | Verilator | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
+| [pipeline_tb.sv](tb/pipeline_tb.sv) | Verilator | Modelling a pipeline as a reference shift register and comparing under a random stall pattern — a far stronger check than spot-checking frozen values. Also flush-while-stalled, adder trees at six values of N, and two loop-breaking accumulators bit-exact against a plain one |
 
 Every testbench has a global timeout, prints a definite PASS/FAIL, and
 `$fatal`s on failure so a regression cannot report success by accident.

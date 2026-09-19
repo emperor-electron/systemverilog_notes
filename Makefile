@@ -11,7 +11,10 @@
 #
 #   Icarus Verilog  4-state. Models X propagation, and supports `shortreal`
 #                   (needed to use the host FPU as a floating-point reference).
-#                   Does NOT support clocking blocks.
+#                   Does NOT support clocking blocks, and its concurrent
+#                   assertion support covers only simple boolean properties --
+#                   the implication operators |-> and |=> are rejected outright.
+#                   Any module using them must be simulated in Verilator.
 #
 #   Verilator       2-state, very fast, excellent linter, supports clocking
 #                   blocks with --timing. Cannot model X propagation, so it
@@ -59,7 +62,7 @@ ARITH_SRCS   = $(filter-out $(PKGS),$(wildcard $(ARITH_DIR)/*.sv))
 # Tests that need a 4-state simulator or `shortreal`  -> Icarus
 IV_TESTS     = signedness width_rules fp arith
 # Tests that need clocking blocks                     -> Verilator
-VL_TESTS     = fifo async_fifo skid smoke
+VL_TESTS     = fifo async_fifo skid smoke pipeline
 
 TESTS        = $(IV_TESTS) $(VL_TESTS)
 
@@ -143,6 +146,14 @@ smoke: | $(BUILD)
 	@$(VERILATOR) $(VL_FLAGS) -o rtl_smoke_tb --Mdir $(BUILD)/obj_smoke \
 	    $(TB_DIR)/rtl_smoke_tb.sv
 	@$(BUILD)/obj_smoke/rtl_smoke_tb
+
+# pipe_ctrl uses |=> in its assertions, which Icarus cannot parse -- hence
+# Verilator rather than the 4-state engine.
+pipeline: | $(BUILD)
+	@echo "=== pipeline_tb: delay line, pipe control, trees, accumulators ==="
+	@$(VERILATOR) $(VL_FLAGS) -o pipeline_tb --Mdir $(BUILD)/obj_pipe \
+	    $(TB_DIR)/pipeline_tb.sv
+	@$(BUILD)/obj_pipe/pipeline_tb
 
 # Cross-check the language demos on Verilator too. They are written to detect a
 # 2-state engine and skip the one X-propagation check it cannot model.
