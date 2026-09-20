@@ -14,7 +14,7 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 32 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[docs/](docs/)** | 34 topic deep-dives — the *why* behind each construct, and the failure modes. |
 | **[examples/](examples/)** | 61 synthesizable modules, 2 packages, 2 runnable language demos, 9 testbenches and 18 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
@@ -37,6 +37,14 @@ And one on the block every digital designer writes:
 - **[FSM coding styles](docs/26-fsm-coding-styles.md)** — the four styles and
   what each costs, why registering FSM outputs need not add a cycle, state
   encoding, and what a design does in the state encodings you did not plan for.
+
+And two on working on the code rather than writing it:
+
+- **[Debugging and bring-up](docs/33-debugging-and-bringup.md)** — the failure
+  is never where the bug is; how to narrow the gap, and how to stop a testbench
+  or a proof from reporting green while something is wrong.
+- **[Coding conventions and reuse](docs/34-coding-conventions-and-reuse.md)** —
+  every convention here, and the specific failure it prevents.
 
 And two on the things around the RTL rather than in it:
 
@@ -142,6 +150,8 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [34](docs/34-coding-conventions-and-reuse.md) | The conventions used throughout this repository and the failure each one prevents: file structure, naming, types, reset policy, parameterisation and degenerate cases, elaboration-time checking, which properties belong in a module versus its harness, lint policy, and a review checklist |
+| [33](docs/33-debugging-and-bringup.md) | Making a failure reproducible, chasing an X backwards, bisecting in space and time, reference models, the several ways a testbench reports green while failing, proofs that pass while proving nothing, waveform strategy, gate-level simulation — and a catalogue of every bug found while building this repository, with how each was found |
 | [32](docs/32-timing-constraints.md) | The timing environment: defining clocks, generated clocks vs clock enables, uncertainty and latency, asynchronous clock groups, input/output delay, exception precedence and why a broad false path silences a CDC bound, and what each RTL construct obliges you to constrain |
 | [31](docs/31-preprocessor-and-directives.md) | Macro hygiene and why the preprocessor has no scoping, conditional compilation, the dual-dialect pattern that lets one source serve XSIM and Yosys, header guards, `default_nettype`, `timescale`, and the table of what to use instead of a macro |
 | [30](docs/30-flow-control-and-handshakes.md) | The valid/ready contract and its four rules, why registering a handshake needs a skid buffer, FIFO depth and flag traps, credit-based flow control, pipelines under backpressure, arbitration and fairness, deadlock/livelock/starvation, and the stimulus patterns that find protocol bugs |
