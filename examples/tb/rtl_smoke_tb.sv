@@ -342,6 +342,57 @@ module rtl_smoke_tb;
   endtask
 
   // ===========================================================================
+  // ===========================================================================
+  // select_styles -- four control structures, one function. Exhaustive.
+  //
+  // W=4 keeps the state space small enough to sweep completely: 16 request
+  // values by 16^4 data combinations is too many, so data is swept over a
+  // few thousand random draws per request value and the request vector is
+  // exhaustive. The formal proof covers the rest.
+  // ===========================================================================
+  logic [3:0]  sel_req;
+  logic [15:0] sel_data;
+  logic [3:0]  sel_if, sel_casez, sel_loop, sel_par;
+
+  select_styles #(.W(4)) u_sel (
+    .req(sel_req), .data(sel_data),
+    .d_if(sel_if), .d_casez(sel_casez), .d_loop(sel_loop), .d_par(sel_par));
+
+  task automatic test_select_styles();
+    logic [3:0] expect_d;
+    int         diffs;
+    $display("[select_styles] priority forms equivalent; parallel form is not");
+    diffs = 0;
+    for (int r = 0; r < 16; r++) begin
+      for (int t = 0; t < 500; t++) begin
+        sel_req  = 4'(r);
+        sel_data = 16'($urandom());
+        #1;
+
+        // Independent reference: lowest set request wins.
+        expect_d = 4'b0;
+        for (int i = 3; i >= 0; i--)
+          if (sel_req[i]) expect_d = sel_data[i*4 +: 4];
+
+        chk($sformatf("if-chain req=%b -> %h (want %h)", sel_req, sel_if, expect_d),
+            sel_if === expect_d);
+        chk($sformatf("casez matches if-chain req=%b", sel_req),
+            sel_casez === sel_if);
+        chk($sformatf("loop matches if-chain req=%b", sel_req),
+            sel_loop === sel_if);
+
+        // The parallel form is equal exactly when at most one bit is set.
+        if ($onehot0(sel_req))
+          chk($sformatf("parallel matches under onehot0 req=%b", sel_req),
+              sel_par === sel_if);
+        else if (sel_par !== sel_if)
+          diffs++;
+      end
+    end
+    chk("parallel form demonstrably differs when req is not one-hot", diffs > 0);
+    $display("  %0d cases where the parallel form differs (expected: many)", diffs);
+  endtask
+
   initial begin
     af_req = '0; rr_req = '0; pe_in = '0; lz_in = '0; pc_in = '0;
     g_bin = '0; g_gin = '0;
@@ -349,6 +400,7 @@ module rtl_smoke_tb;
     c_en = 1'b0; c_dir = 1'b0; c_load = 1'b0; c_loadval = '0;
     sr_load = 1'b0; sr_sh = 1'b0; sr_sin = 1'b0; sr_din = '0;
     u_tvalid = 1'b0; u_tdata = '0;
+    sel_req = '0; sel_data = '0;
 
     repeat (4) @(posedge clk);
     rst_n = 1'b1;
@@ -362,6 +414,7 @@ module rtl_smoke_tb;
     test_counter();
     test_shift_register();
     test_uart();
+    test_select_styles();
 
     $display("");
     if (errors == 0) $display("rtl_smoke_tb: PASS");

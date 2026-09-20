@@ -1,6 +1,6 @@
 # Examples
 
-All 73 example files analyse cleanly under `xvlog` and are latch-checked by
+All 74 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -41,6 +41,12 @@ modules Yosys's frontend cannot read.
 |---|---|
 | [sync_fifo.sv](rtl/sync_fifo.sv) | single-clock FIFO; the extra-MSB pointer trick for full-vs-empty |
 | [skid_buffer.sv](rtl/skid_buffer.sv) | registers a valid/ready handshake **in both directions** with no throughput loss — the standard pipeline stage |
+
+### Control-structure comparison
+
+| File | What it shows |
+|---|---|
+| [select_styles.sv](rtl/select_styles.sv) | one selector written four ways — if-chain, `casez`, unrolled loop, parallel AND-OR — with the equivalences and the one inequivalence proved. See [docs/27](../docs/27-control-structures.md) |
 
 ### Arbitration and encoding
 
@@ -199,7 +205,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 
 ## `../formal/` — SymbiYosys proofs
 
-16 modules, 37 tasks, run by `make formal` or `formal/run_all.sh`.
+17 modules, 39 tasks, run by `make formal` or `formal/run_all.sh`.
 
 | Proof | Mode | What it settles |
 |---|---|---|
@@ -218,6 +224,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [div_restoring_fv](../formal/div_restoring_fv.sv) | **prove** + bmc + cover | `q*d + r == n` and `r < d` |
 | [sync_fifo_fv](../formal/sync_fifo_fv.sv) | bmc + cover | flags, level and data integrity to depth 30 — induction stated as not closing rather than claimed |
 | [fsm_three_process_fv](../formal/fsm_three_process_fv.sv) | **prove** + bmc + cover | registered outputs stay aligned with their state, for all time; and bounded equivalence with the combinational-output style |
+| [select_styles_fv](../formal/select_styles_fv.sv) | bmc + cover | **exhaustive**: three priority spellings are one circuit; the parallel form differs unless `$onehot0(req)` |
 | [fsm_safe_fv](../formal/fsm_safe_fv.sv) | **recover** + prove + bmc + cover | recovery from all 12 illegal encodings, by BMC from a free initial state |
 
 Properties that need a module's internal state live **inside** that module under
