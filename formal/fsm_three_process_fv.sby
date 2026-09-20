@@ -1,0 +1,29 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+# Equivalence against fsm_two_process: bounded, for the reason in the harness.
+bmc:   mode bmc
+bmc:   depth 30
+# Unbounded: the output-alignment invariants inside fsm_three_process.sv.
+prove: mode prove
+cover: mode cover
+cover: depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+bmc:   verilog_defines -DEQUIV
+cover: verilog_defines -DEQUIV
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL fsm_two_process.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL fsm_three_process.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL fsm_three_process_fv.sv
+prep -top fsm_three_process_fv
+
+[files]
+../examples/rtl/fsm_two_process.sv
+../examples/rtl/fsm_three_process.sv
+fsm_three_process_fv.sv

@@ -35,6 +35,7 @@ Deep dives live in [`docs/`](docs/); runnable code lives in [`examples/`](exampl
 25. [Pipelining and timing idioms](#25-pipelining-and-timing-idioms)
 26. [Structural technique idioms](#26-structural-technique-idioms)
 27. [Formal verification with sby](#27-formal-verification-with-sby)
+28. [FSM idioms](#28-fsm-idioms)
 
 ---
 
@@ -1356,3 +1357,124 @@ f_stream : assert (!out_valid || (out_data == out_seq));
 
 Sound only because the datapath is **data-independent** — the control never
 inspects the payload.
+
+---
+
+## 28. FSM idioms
+
+Full treatment in [docs/26](docs/26-fsm-coding-styles.md).
+
+### The state type
+
+```systemverilog
+typedef enum logic [2:0] { S_IDLE, S_REQ, S_XFER, S_DONE } state_e;
+//               ^^^^^^^^ size it. Bare `enum {...}` defaults to 32-bit int.
+state_e state, next;
+$error("stuck in %s", state.name());     // sim-only, free
+```
+
+### The four styles
+
+```systemverilog
+// TWO-PROCESS: readable; outputs are combinational and glitch
+always_ff @(posedge clk or negedge rst_n)
+  if (!rst_n) state <= S_IDLE; else state <= next;
+
+always_comb begin
+  next = state;                  // DEFAULT: hold -- prevents the latch
+  unique case (state)
+    S_IDLE: if (start) next = S_REQ;
+    default:           next = S_IDLE;    // not optional
+  endcase
+end
+
+// ONE-PROCESS: outputs registered, but you clear them on every exit path
+always_ff @(posedge clk) begin
+  done <= 1'b0;                  // default each cycle => a one-cycle pulse
+  unique case (state)
+    S_XFER: if (last) begin state <= S_DONE; bus_req <= 1'b0; done <= 1'b1; end
+  endcase
+end
+
+// THREE-PROCESS: the default choice. Registered AND aligned.
+always_ff @(posedge clk) bus_req <= (next == S_REQ);   // decode NEXT
+//                                   ^^^^ decoding `state` here is a cycle late
+
+// ONE-HOT: next-state depth is constant in the number of states
+next[I_REQ] = (state[I_IDLE] & start) | (state[I_REQ] & ~grant);
+```
+
+| | two-proc | one-proc | three-proc | one-hot |
+|---|---|---|---|---|
+| Glitch-free outputs | no | yes | yes | — |
+| Output bookkeeping | automatic | **manual** | automatic | automatic |
+| Extra latency | none | none | none | none |
+| Use for | small, internal | pulse-heavy | **default** | wide / FPGA |
+
+### Registering outputs costs no latency
+
+```systemverilog
+bus_req <= (state == S_REQ);   // ONE CYCLE LATE
+bus_req <= (next  == S_REQ);   // ALIGNED -- state <= next on the same edge
+```
+
+### Illegal states
+
+```systemverilog
+default: next = S_IDLE;                        // every case on a state
+if (SAFE && !$onehot(state)) next = S_IDLE;    // one-hot: must OVERWRITE, not OR
+(* fsm_safe_state = "reset_state" *)           // Vivado; ignored elsewhere
+(* fsm_encoding   = "one_hot" *)               // only if the tool infers the FSM
+```
+
+All-zeros is **absorbing** in a hand-written one-hot machine: no transition term
+is true, so it stays there until reset.
+
+### `unique` is an assertion, not a directive
+
+```systemverilog
+unique case (state) ... default: ... endcase   // use BOTH
+```
+
+`unique` without a `default` diverges: simulation reports a violation and holds
+the old value; synthesis was told the case is impossible and builds anything.
+Never `full_case` / `parallel_case`. Never `casex` on a state (an X matches the
+first branch and the FSM sails on).
+
+### Control / datapath split
+
+```systemverilog
+assign last = (cnt <= CW'(1));   // from cnt, NOT cnt_d -- keeps the
+S_XFER: if (ack) begin           // comparator off the next-state path
+          cnt_d = cnt - 1'b1;
+          if (last) next = S_DONE;
+        end
+```
+
+A 256-beat transfer is 4 states and a counter, not 259 states.
+
+### Properties worth writing every time
+
+```systemverilog
+a_legal  : assert property (state inside {S_IDLE, S_REQ, S_XFER, S_DONE});
+a_pulse  : assert property (done |=> !done);
+a_aligned: assert property (bus_req == (state == S_REQ));
+c_run    : cover  property ((state == S_IDLE) ##1 (state == S_REQ) [*1:$]
+                            ##1 (state == S_DONE));   // the one people skip
+```
+
+An assertion that never fires because its state is unreachable reports green.
+`cover` every state you believe in.
+
+### Fault injection
+
+```systemverilog
+$assertoff(0, u_dut);            // you are deliberately breaking its contract
+force u_dut.state = 4'b0000;
+@(negedge clk); release u_dut.state;
+@(negedge clk); chk("recovered", !err);
+$asserton(0, u_dut);
+```
+
+`force` holds the register against its own `always_ff`, so the injected value is
+still the sampled value at the *next* edge too.

@@ -1,7 +1,5 @@
 // -----------------------------------------------------------------------------
 // fsm_one_process.sv -- FSM, one-process style (everything registered).
-// one-hot-encoded variant.
-//
 // The controller: wait for `start`, request a bus, wait for `grant`, transfer
 // `len` beats, then pulse `done`.
 // -----------------------------------------------------------------------------
@@ -74,12 +72,5 @@ module fsm_one_process #(
   end
 
 endmodule
-
-
-// =============================================================================
-// Style 3: EXPLICIT ONE-HOT. Each state is one flop; the next-state logic for
-// each is a small OR of the transitions INTO it. Fast on an FPGA (no decode),
-// and `unique case (1'b1)` reads naturally.
-// =============================================================================
 
 `default_nettype wire

@@ -222,6 +222,11 @@ Both examples above show the `default:` branch. It is not optional: a state
 register can enter an unreachable encoding through an SEU or an `X`, and without
 a default the synthesized logic is unconstrained.
 
+> There is a third style — registered outputs decoded from `next`, which is
+> glitch-free *and* costs no extra cycle — plus state encoding, illegal-state
+> recovery and the `unique`-without-`default` synthesis divergence, in
+> **[docs/26: FSM coding styles](26-fsm-coding-styles.md)**.
+
 ## 4. `case` variants
 
 ```systemverilog

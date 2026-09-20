@@ -58,7 +58,7 @@ ALL_SRCS   = $(PKGS) $(RTL_SRCS) $(ARITH_SRCS)
 # Two of the "testbenches" are standalone language demos in examples/arith;
 # the rest are in examples/tb. The mapping is resolved in the run rule.
 SIM_TESTS = signedness width_rules fp arith fifo async_fifo skid smoke \
-            pipeline techniques
+            pipeline techniques fsm
 
 TOP_signedness  = signedness_demo
 TOP_width_rules = width_rules_tb
@@ -70,6 +70,7 @@ TOP_skid        = skid_buffer_tb
 TOP_smoke       = rtl_smoke_tb
 TOP_pipeline    = pipeline_tb
 TOP_techniques  = techniques_tb
+TOP_fsm         = fsm_tb
 
 # The two demos need no extra file beyond ALL_SRCS; the others add their TB.
 EXTRA_signedness  =
@@ -82,6 +83,7 @@ EXTRA_skid        = $(TB_DIR)/skid_buffer_tb.sv
 EXTRA_smoke       = $(TB_DIR)/rtl_smoke_tb.sv
 EXTRA_pipeline    = $(TB_DIR)/pipeline_tb.sv
 EXTRA_techniques  = $(TB_DIR)/techniques_tb.sv
+EXTRA_fsm         = $(TB_DIR)/fsm_tb.sv
 
 .PHONY: all lint sim formal clean $(SIM_TESTS)
 
@@ -124,6 +126,13 @@ lint:
 
 # -----------------------------------------------------------------------------
 # Simulation (XSIM)
+#
+# A testbench passes only if it prints PASS *and* no SVA assertion failed. Those
+# are genuinely separate conditions: a concurrent assertion that fails calls
+# $error, which XSIM reports and carries on from, so a testbench whose own
+# checks all pass will still print PASS with failing assertions scrolling past
+# above it. Grepping for the PASS line alone hides exactly the failures the
+# assertions were written to catch.
 # -----------------------------------------------------------------------------
 sim: $(SIM_TESTS)
 	@echo ""
@@ -141,7 +150,11 @@ $(SIM_TESTS):
 	  out=$$(xsim sim -R --nolog 2>&1); \
 	  echo "$$out" | grep -E "^\[|: (PASS|FAIL)|MISMATCH|FAIL " || true; \
 	  echo "$$out" | grep -q ": PASS" \
-	    || { echo "*** $(TOP_$@) DID NOT PASS ***"; exit 1; }
+	    || { echo "*** $(TOP_$@) DID NOT PASS ***"; exit 1; }; \
+	  if echo "$$out" | grep -qE "^Error:"; then \
+	    echo "*** $(TOP_$@) printed PASS but SVA assertions FAILED ***"; \
+	    echo "$$out" | grep -E "^Error:" | sort | uniq -c | head -10; exit 1; \
+	  fi
 
 # -----------------------------------------------------------------------------
 # Formal (SymbiYosys)

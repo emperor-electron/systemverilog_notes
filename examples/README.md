@@ -1,7 +1,8 @@
 # Examples
 
-All 70 example files are lint-clean under Verilator `-Wall` and exercised by the
-testbenches in [`tb/`](tb/). `make` from the repository root runs everything.
+All 73 example files analyse cleanly under `xvlog` and are latch-checked by
+yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
+from the repository root runs everything.
 
 One module per file, named after the module. XSIM has no library-search switch,
 so `make` analyses every source explicitly (packages first), but the convention
@@ -79,10 +80,16 @@ modules Yosys's frontend cannot read.
 | File | What it shows |
 |---|---|
 | [fsm_two_process.sv](rtl/fsm_two_process.sv) | registered state, combinational next-state and outputs |
-| [fsm_one_process.sv](rtl/fsm_one_process.sv) | everything registered — shorter paths, one cycle later |
+| [fsm_one_process.sv](rtl/fsm_one_process.sv) | everything registered, assigned at transition time |
+| [fsm_three_process.sv](rtl/fsm_three_process.sv) | registered outputs decoded from `next` — glitch-free **and** aligned |
 | [fsm_onehot.sv](rtl/fsm_onehot.sv) | explicit one-hot with `unique case (1'b1)` |
+| [fsm_safe.sv](rtl/fsm_safe.sv) | illegal-state recovery, and what happens without it |
 
-All three implement the same controller, so they can be compared directly.
+The first four implement the same controller, so they can be compared directly
+— and [fsm_tb.sv](tb/fsm_tb.sv) checks that three of them produce *identical*
+waveforms, which is the point: the choice between them is about timing and
+maintainability, not behaviour. See
+[docs/26](../docs/26-fsm-coding-styles.md).
 
 ### Serial interfaces
 
@@ -182,6 +189,7 @@ fp32 configuration is covered by the reference model in
 | [skid_buffer_tb.sv](tb/skid_buffer_tb.sv) | XSIM | A valid/ready driver needs no shadow model — and a **throughput** assertion, which is the check that actually matters here |
 | [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | XSIM | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
 | [techniques_tb.sv](tb/techniques_tb.sv) | XSIM | The structural-technique modules, each against an independent reference: insertion sort, the `*` and `/` operators being replaced, a recomputed reciprocal table, and a forced-corruption test of ring-counter self-correction |
+| [fsm_tb.sv](tb/fsm_tb.sv) | XSIM | Three FSM styles compared cycle-for-cycle under stalling stimulus, and fault injection of all 12 illegal encodings of a one-hot state vector. Also two testbench traps worth knowing: driving stimulus on the sampling edge, and letting X reach a DUT whose test has not started yet |
 | [pipeline_tb.sv](tb/pipeline_tb.sv) | XSIM | Modelling a pipeline as a reference shift register and comparing under a random stall pattern — a far stronger check than spot-checking frozen values. Also flush-while-stalled, adder trees at six values of N, and two loop-breaking accumulators bit-exact against a plain one |
 
 Every testbench has a global timeout, prints a definite PASS/FAIL, and
@@ -191,7 +199,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 
 ## `../formal/` — SymbiYosys proofs
 
-14 modules, 30 tasks, run by `make formal` or `formal/run_all.sh`.
+16 modules, 37 tasks, run by `make formal` or `formal/run_all.sh`.
 
 | Proof | Mode | What it settles |
 |---|---|---|
@@ -209,6 +217,8 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [skid_buffer_fv](../formal/skid_buffer_fv.sv) | **prove** + bmc + cover | no loss, no duplication, no reordering, for all time |
 | [div_restoring_fv](../formal/div_restoring_fv.sv) | **prove** + bmc + cover | `q*d + r == n` and `r < d` |
 | [sync_fifo_fv](../formal/sync_fifo_fv.sv) | bmc + cover | flags, level and data integrity to depth 30 — induction stated as not closing rather than claimed |
+| [fsm_three_process_fv](../formal/fsm_three_process_fv.sv) | **prove** + bmc + cover | registered outputs stay aligned with their state, for all time; and bounded equivalence with the combinational-output style |
+| [fsm_safe_fv](../formal/fsm_safe_fv.sv) | **recover** + prove + bmc + cover | recovery from all 12 illegal encodings, by BMC from a free initial state |
 
 Properties that need a module's internal state live **inside** that module under
 `` `ifdef FORMAL ``, not in the harness. That is forced: a hierarchical reference

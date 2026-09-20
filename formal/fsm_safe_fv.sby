@@ -1,0 +1,30 @@
+[tasks]
+bmc
+prove
+recover
+cover
+
+[options]
+bmc:     mode bmc
+bmc:     depth 20
+prove:   mode prove
+# The one that matters: induction supplies the 12 illegal encodings for free.
+# Kept separate from `prove` so that no other assertion constrains the previous
+# state and makes it vacuous -- see the header of fsm_safe_fv.sv.
+recover: mode bmc
+recover: depth 3
+cover:   mode cover
+cover:   depth 16
+
+[engines]
+smtbmc boolector
+
+[script]
+recover: verilog_defines -DRECOVERY_ONLY
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL fsm_safe.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL fsm_safe_fv.sv
+prep -top fsm_safe_fv
+
+[files]
+../examples/rtl/fsm_safe.sv
+fsm_safe_fv.sv

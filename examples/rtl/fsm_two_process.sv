@@ -1,7 +1,5 @@
 // -----------------------------------------------------------------------------
 // fsm_two_process.sv -- FSM, two-process style (registered state, comb outputs).
-// one-hot-encoded variant.
-//
 // The controller: wait for `start`, request a bus, wait for `grant`, transfer
 // `len` beats, then pulse `done`.
 // -----------------------------------------------------------------------------
@@ -97,11 +95,5 @@ module fsm_two_process #(
 `endif
 
 endmodule
-
-
-// =============================================================================
-// Style 2: ONE PROCESS -- everything registered. Outputs are glitch-free and
-// arrive one cycle after the decision. Shorter timing paths.
-// =============================================================================
 
 `default_nettype wire

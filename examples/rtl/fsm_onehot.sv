@@ -1,7 +1,5 @@
 // -----------------------------------------------------------------------------
 // fsm_onehot.sv -- FSM, explicit one-hot encoding.
-// one-hot-encoded variant.
-//
 // The controller: wait for `start`, request a bus, wait for `grant`, transfer
 // `len` beats, then pulse `done`.
 // -----------------------------------------------------------------------------
