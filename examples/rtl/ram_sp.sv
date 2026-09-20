@@ -38,7 +38,4 @@ module ram_sp #(
   end
 endmodule
 
-
-// --- single-port RAM, write-first (write-through) ----------------------------
-
 `default_nettype wire

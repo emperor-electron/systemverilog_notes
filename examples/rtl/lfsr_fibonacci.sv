@@ -28,11 +28,4 @@ module lfsr_fibonacci #(
   end
 endmodule
 
-
-// --- Parallel CRC ------------------------------------------------------------
-// Processes DW bits per cycle. The trick: the bit-serial CRC step is linear
-// over GF(2), so DW serial steps can be unrolled into one lump of XOR logic at
-// elaboration time. The `for` loop below IS that unrolling -- the synthesized
-// result is a two-level XOR network, not a shift register.
-
 `default_nettype wire

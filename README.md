@@ -14,7 +14,7 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 28 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[docs/](docs/)** | 30 topic deep-dives — the *why* behind each construct, and the failure modes. |
 | **[examples/](examples/)** | 61 synthesizable modules, 2 packages, 2 runnable language demos, 9 testbenches and 18 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
@@ -37,6 +37,13 @@ And one on the block every digital designer writes:
 - **[FSM coding styles](docs/26-fsm-coding-styles.md)** — the four styles and
   what each costs, why registering FSM outputs need not add a cycle, state
   encoding, and what a design does in the state encodings you did not plan for.
+
+And two on the blocks everything else is built out of:
+
+- **[Memories and inference](docs/29-memories-and-inference.md)** — how you
+  write a memory decides whether you get a block RAM or ten thousand flops.
+- **[Flow control and handshakes](docs/30-flow-control-and-handshakes.md)** —
+  the valid/ready contract, skid buffers, FIFO sizing, arbitration, deadlock.
 
 And one on the discipline that ordinary simulation cannot check:
 
@@ -127,6 +134,8 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [30](docs/30-flow-control-and-handshakes.md) | The valid/ready contract and its four rules, why registering a handshake needs a skid buffer, FIFO depth and flag traps, credit-based flow control, pipelines under backpressure, arbitration and fairness, deadlock/livelock/starvation, and the stimulus patterns that find protocol bugs |
+| [29](docs/29-memories-and-inference.md) | The block-RAM inference rules and why each one matters, read-first/write-first/no-change, port configurations, byte enables, why a register file breaks the rules deliberately, ROM initialisation, output registers and latency, dual-port collisions, and when to stop inferring and instantiate |
 | [28](docs/28-clock-domain-crossing.md) | Metastability and the MTBF equation, the two-flop synchronizer and `ASYNC_REG`, crossing levels/pulses/buses/streams, Gray pointers and why bit-by-bit sync is safe for them, reset crossing, reconvergence, the constraints and lint the RTL cannot replace, and a bug catalogue |
 | [27](docs/27-control-structures.md) | What each control structure becomes in hardware: priority chains vs balanced muxes vs parallel AND-OR, the `case` family and why `casex` is banned, `?:` being X-pessimistic while `if` is X-optimistic, loops as spatial unrolling and loop-carried dependencies, generate constructs, and the verification-only forms |
 | [26](docs/26-fsm-coding-styles.md) | The four FSM styles compared, decoding `next` so registered outputs cost no latency, Moore vs Mealy, state encoding, illegal-state recovery and how to prove it, `unique`/`priority` synthesis divergence, control/datapath split, FSM patterns and a checklist |

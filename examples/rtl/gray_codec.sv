@@ -27,10 +27,4 @@ module gray_codec #(
   end
 endmodule
 
-
-// --- Gray-code counter -------------------------------------------------------
-// Keeps a binary counter internally and emits the Gray view, which is what you
-// want for a CDC pointer: the binary form is easy to compare and increment,
-// the Gray form is what crosses the boundary.
-
 `default_nettype wire

@@ -22,9 +22,4 @@ module onehot_decoder #(
   end
 endmodule
 
-
-// --- leading zero count ------------------------------------------------------
-// Counts zeros from the MSB down. Returns N if the input is all zero.
-// This is the critical block inside a floating-point adder's normalizer.
-
 `default_nettype wire

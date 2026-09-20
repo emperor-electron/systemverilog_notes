@@ -29,7 +29,4 @@ module priority_encoder #(
   end
 endmodule
 
-
-// --- one-hot decoder ---------------------------------------------------------
-
 `default_nettype wire

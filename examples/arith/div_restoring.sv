@@ -117,18 +117,4 @@ module div_restoring #(
 
 endmodule
 
-
-// -----------------------------------------------------------------------------
-// Signed wrapper.
-//
-// SystemVerilog signed division TRUNCATES TOWARD ZERO (-7/2 == -3), and the
-// remainder takes the sign of the DIVIDEND (-7%2 == -1). That is the C
-// convention, and it is NOT what an arithmetic right shift gives you
-// (-7>>>1 == -4, which floors). So: divide magnitudes, then apply signs.
-//
-// The most-negative input is the usual asymmetry trap: abs(-2^(W-1)) does not
-// fit in W signed bits. Computing the magnitude in UNSIGNED arithmetic makes
-// it work, because 2^(W-1) is representable there.
-// -----------------------------------------------------------------------------
-
 `default_nettype wire

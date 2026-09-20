@@ -37,7 +37,4 @@ module lfsr_galois #(
 `endif
 endmodule
 
-
-// --- Fibonacci LFSR ----------------------------------------------------------
-
 `default_nettype wire

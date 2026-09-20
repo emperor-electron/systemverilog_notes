@@ -29,7 +29,4 @@ module lzc #(
   end
 endmodule
 
-
-// --- population count (adder tree) -------------------------------------------
-
 `default_nettype wire

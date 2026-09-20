@@ -36,9 +36,4 @@ module ram_be #(
   end
 endmodule
 
-
-// --- register file: 2 read ports, 1 write port, async read -------------------
-// Async read means flops or distributed RAM, not a block RAM. That is the
-// right choice for a small, latency-critical register file.
-
 `default_nettype wire

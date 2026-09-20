@@ -19,7 +19,4 @@ module popcount #(
   assign count = CW'($countones(in));
 endmodule
 
-
-// --- Gray <-> binary ---------------------------------------------------------
-
 `default_nettype wire

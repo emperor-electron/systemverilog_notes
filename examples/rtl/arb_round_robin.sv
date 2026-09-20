@@ -53,8 +53,4 @@ module arb_round_robin #(
 
 endmodule
 
-
-// --- weighted round robin (deficit counter) ----------------------------------
-// Each requester gets WEIGHT[i] consecutive grants before the pointer moves on.
-
 `default_nettype wire

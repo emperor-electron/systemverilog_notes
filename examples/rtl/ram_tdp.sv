@@ -56,8 +56,4 @@ module ram_tdp #(
   // undefined result in the RAM primitive. Arbitrate above this level.
 endmodule
 
-
-// --- byte-enabled RAM --------------------------------------------------------
-// The indexed part-select `mem[addr][i*8 +: 8]` is the idiomatic byte lane.
-
 `default_nettype wire

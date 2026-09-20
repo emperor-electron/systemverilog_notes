@@ -38,7 +38,4 @@ module ram_sp_wf #(
   end
 endmodule
 
-
-// --- simple dual port: one write port, one read port, same clock -------------
-
 `default_nettype wire

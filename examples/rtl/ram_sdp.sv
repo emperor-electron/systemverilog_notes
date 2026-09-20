@@ -36,7 +36,4 @@ module ram_sdp #(
   //   assign rdata_out = (we && re && waddr == raddr) ? wdata_q : rdata;
 endmodule
 
-
-// --- true dual port, two independent clocks ----------------------------------
-
 `default_nettype wire

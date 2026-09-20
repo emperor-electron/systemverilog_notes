@@ -22,7 +22,4 @@ module arb_fixed #(
   assign grant = req & (~req + 1'b1);
 endmodule
 
-
-// --- round robin -------------------------------------------------------------
-
 `default_nettype wire
