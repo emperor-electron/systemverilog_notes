@@ -71,6 +71,34 @@ module cdc_handshake #(
       ack_q      <= req_sync;                    // 4-phase: follow req
     end
   end
+
+`ifdef FORMAL
+  // The obligation the whole crossing rests on.
+  //
+  // Only req and ack actually cross domains; `data_q` does not, and is read by
+  // the destination on a clock edge that has no defined relationship to the
+  // source clock at all. That is only safe because `data_q` is GUARANTEED
+  // STABLE for the entire time `req_q` is asserted -- so whenever the
+  // destination samples it, it samples a settled value.
+  //
+  // This is a source-domain property: it depends on nothing but the source
+  // always_ff, so it can be proved here even though the crossing itself cannot
+  // be (see docs/28 -- Yosys formal is single-clock). What it does NOT prove is
+  // that the destination samples at the right moment; that is a timing
+  // constraint, not a logic property.
+  logic f_past = 1'b0;
+  always @(posedge sclk) f_past <= 1'b1;
+
+  always @(posedge sclk)
+    if (f_past && srst_n && $past(srst_n) && $past(req_q) && req_q)
+      f_data_stable : assert (data_q == $past(data_q));
+
+  // And req is only raised on an accepted transfer, never spontaneously.
+  always @(posedge sclk)
+    if (f_past && srst_n && $past(srst_n) && !$past(req_q) && req_q)
+      f_req_needs_xfer : assert ($past(s_valid) && $past(s_ready));
+`endif
+
 endmodule
 
 `default_nettype wire

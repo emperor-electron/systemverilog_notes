@@ -205,7 +205,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 
 ## `../formal/` — SymbiYosys proofs
 
-17 modules, 39 tasks, run by `make formal` or `formal/run_all.sh`.
+18 modules, 42 tasks, run by `make formal` or `formal/run_all.sh`.
 
 | Proof | Mode | What it settles |
 |---|---|---|
@@ -224,6 +224,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [div_restoring_fv](../formal/div_restoring_fv.sv) | **prove** + bmc + cover | `q*d + r == n` and `r < d` |
 | [sync_fifo_fv](../formal/sync_fifo_fv.sv) | bmc + cover | flags, level and data integrity to depth 30 — induction stated as not closing rather than claimed |
 | [fsm_three_process_fv](../formal/fsm_three_process_fv.sv) | **prove** + bmc + cover | registered outputs stay aligned with their state, for all time; and bounded equivalence with the combinational-output style |
+| [cdc_handshake_fv](../formal/cdc_handshake_fv.sv) | **prove** + bmc + cover | data held stable while the request is outstanding; scope limits stated in the harness |
 | [select_styles_fv](../formal/select_styles_fv.sv) | bmc + cover | **exhaustive**: three priority spellings are one circuit; the parallel form differs unless `$onehot0(req)` |
 | [fsm_safe_fv](../formal/fsm_safe_fv.sv) | **recover** + prove + bmc + cover | recovery from all 12 illegal encodings, by BMC from a free initial state |
 

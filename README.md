@@ -14,8 +14,8 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 27 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 61 synthesizable modules, 2 packages, 2 runnable language demos, 9 testbenches and 17 formal proofs, all verified. See [examples/README.md](examples/README.md). |
+| **[docs/](docs/)** | 28 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[examples/](examples/)** | 61 synthesizable modules, 2 packages, 2 runnable language demos, 9 testbenches and 18 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
 correct:
@@ -37,6 +37,13 @@ And one on the block every digital designer writes:
 - **[FSM coding styles](docs/26-fsm-coding-styles.md)** — the four styles and
   what each costs, why registering FSM outputs need not add a cycle, state
   encoding, and what a design does in the state encodings you did not plan for.
+
+And one on the discipline that ordinary simulation cannot check:
+
+- **[Clock domain crossing](docs/28-clock-domain-crossing.md)** — metastability
+  and MTBF, the four kinds of crossing and which technique each needs,
+  reconvergence, reset crossing, and why CDC is verified by lint and
+  constraints rather than by running the testbench again.
 
 And one on what makes a chip testable at all:
 
@@ -120,6 +127,7 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [28](docs/28-clock-domain-crossing.md) | Metastability and the MTBF equation, the two-flop synchronizer and `ASYNC_REG`, crossing levels/pulses/buses/streams, Gray pointers and why bit-by-bit sync is safe for them, reset crossing, reconvergence, the constraints and lint the RTL cannot replace, and a bug catalogue |
 | [27](docs/27-control-structures.md) | What each control structure becomes in hardware: priority chains vs balanced muxes vs parallel AND-OR, the `case` family and why `casex` is banned, `?:` being X-pessimistic while `if` is X-optimistic, loops as spatial unrolling and loop-carried dependencies, generate constructs, and the verification-only forms |
 | [26](docs/26-fsm-coding-styles.md) | The four FSM styles compared, decoding `next` so registered outputs cost no latency, Moore vs Mealy, state encoding, illegal-state recovery and how to prove it, `unique`/`priority` synthesis divergence, control/datapath split, FSM patterns and a checklist |
 
@@ -209,7 +217,7 @@ independently-written reference, not against itself.
 | `fsm_tb` | the two-process, one-process and three-process styles proved to produce identical waveforms over 64 cycles of arbitrary stalling; explicit one-hot; and all 12 illegal encodings of a one-hot FSM injected by `force`, showing the safe variant recovering in one cycle and the unsafe one absorbing |
 | `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
 
-### Proved (SymbiYosys) — 17 modules, 39 tasks
+### Proved (SymbiYosys) — 18 modules, 42 tasks
 
 Formal does what simulation cannot: it *searches* the input space rather than
 sampling it.
@@ -226,6 +234,7 @@ sampling it.
 | `gray_counter`, `ring_counter` | **unbounded**: single-bit change; one-hot preserved *and* reachable |
 | `sync_fifo` | flag/level consistency and data integrity, bounded to depth 30 (the induction is stated as not closing, rather than claimed) |
 | `fsm_three_process` | **unbounded**: registered outputs stay aligned with their state — registering them costs no latency; plus bounded equivalence with the combinational-output version |
+| `cdc_handshake` | **unbounded**: the bus is held stable for the whole time its request is outstanding — the single-domain rule the crossing rests on. Deliberately *not* a proof that the crossing is safe; see docs/28 |
 | `select_styles` | an if-chain, a `casez` and an unrolled loop are the **same circuit**; the parallel AND-OR form is a different one, equal exactly under `$onehot0` — the proof obligation `unique case` silently takes on |
 | `fsm_safe` | recovery from **all 12 illegal encodings** of a one-hot FSM, by BMC from a free initial state — and the negative control that makes the proof mean something |
 
