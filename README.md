@@ -14,7 +14,7 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 34 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[docs/](docs/)** | 35 topic deep-dives — the *why* behind each construct, and the failure modes. |
 | **[examples/](examples/)** | 61 synthesizable modules, 2 packages, 2 runnable language demos, 9 testbenches and 18 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
@@ -37,6 +37,12 @@ And one on the block every digital designer writes:
 - **[FSM coding styles](docs/26-fsm-coding-styles.md)** — the four styles and
   what each costs, why registering FSM outputs need not add a cycle, state
   encoding, and what a design does in the state encodings you did not plan for.
+
+And one on turning parts of the chip off:
+
+- **[Low-power architecture](docs/35-low-power-architecture.md)** — power
+  domains, isolation, retention and DVFS. None of it appears in the RTL, which
+  is why a design can be functionally perfect and broken by power gating.
 
 And two on working on the code rather than writing it:
 
@@ -150,6 +156,7 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [35](docs/35-low-power-architecture.md) | Where power goes and the hierarchy of savings, power domains, isolation and choosing a clamp value per signal, retention and its cheaper alternatives, level shifters, DVFS ordering, what the RTL must still provide for power intent to be implementable, and why a plain RTL testbench verifies none of it |
 | [34](docs/34-coding-conventions-and-reuse.md) | The conventions used throughout this repository and the failure each one prevents: file structure, naming, types, reset policy, parameterisation and degenerate cases, elaboration-time checking, which properties belong in a module versus its harness, lint policy, and a review checklist |
 | [33](docs/33-debugging-and-bringup.md) | Making a failure reproducible, chasing an X backwards, bisecting in space and time, reference models, the several ways a testbench reports green while failing, proofs that pass while proving nothing, waveform strategy, gate-level simulation — and a catalogue of every bug found while building this repository, with how each was found |
 | [32](docs/32-timing-constraints.md) | The timing environment: defining clocks, generated clocks vs clock enables, uncertainty and latency, asynchronous clock groups, input/output delay, exception precedence and why a broad false path silences a CDC bound, and what each RTL construct obliges you to constrain |
