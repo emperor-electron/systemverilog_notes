@@ -1,6 +1,6 @@
 # Examples
 
-All 86 example files analyse cleanly under `xvlog` and are latch-checked by
+All 90 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -69,6 +69,14 @@ modules Yosys's frontend cannot read.
 | [lfsr_galois.sv](rtl/lfsr_galois.sv) | Galois form: one XOR on the critical path regardless of tap count |
 | [lfsr_fibonacci.sv](rtl/lfsr_fibonacci.sv) | Fibonacci form, for comparison |
 | [crc_parallel.sv](rtl/crc_parallel.sv) | N bits per cycle; a `for` loop that unrolls a bit-serial CRC into an XOR network at elaboration |
+
+### Bus interfaces and registers
+
+| File | What it shows |
+|---|---|
+| [csr_bank.sv](rtl/csr_bank.sv) | RW / RO / **W1C** register semantics behind a generic port, deliberately not tied to a bus — with the set-beats-clear rule that stops a W1C clear from swallowing an event |
+| [apb_slave.sv](rtl/apb_slave.sv) | APB4 completer: registered `pready`, and `ren`/`wen` pulsed exactly once so a side-effecting register is not accessed during SETUP |
+| [axil_slave.sv](rtl/axil_slave.sv) | AXI4-Lite subordinate: AW and W accepted **in either order**, every `ready` a function of registers only, exactly one B per write |
 
 ### Memory
 
@@ -211,6 +219,7 @@ fp32 configuration is covered by the reference model in
 | [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | XSIM | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
 | [techniques_tb.sv](tb/techniques_tb.sv) | XSIM | The structural-technique modules, each against an independent reference: insertion sort, the `*` and `/` operators being replaced, a recomputed reciprocal table, and a forced-corruption test of ring-counter self-correction |
 | [fsm_tb.sv](tb/fsm_tb.sv) | XSIM | Three FSM styles compared cycle-for-cycle under stalling stimulus, and fault injection of all 12 illegal encodings of a one-hot state vector. Also two testbench traps worth knowing: driving stimulus on the sampling edge, and letting X reach a DUT whose test has not started yet |
+| [bus_tb.sv](tb/bus_tb.sv) | XSIM | APB and AXI4-Lite each fronting an identical register bank, so a failure through one bus and not the other is a bus bug and one through both is a register bug. Covers byte strobes, SLVERR on a read-only write and on an unmapped address, response backpressure, AXI channel ordering all three ways, and a W1C set arriving in the same cycle as its clear |
 | [serial_tb.sv](tb/serial_tb.sv) | XSIM | SPI master wired **to the slave**, exchanging bytes in both directions across all four modes and both bit orders — a sign error in "which edge samples" cannot cancel out, because the master runs on the system clock and the slave oversamples. I2C runs against a behavioural slave on a wired-AND bus, covering ACK, NACK, an unaddressed device and clock stretching |
 | [periph_tb.sv](tb/periph_tb.sv) | XSIM | The timer and I/O peripherals: divider tick spacing and enable gating, debounce against a genuinely bouncing input, the windowed watchdog's early and late faults, and a PWM duty sweep that measures every duty from 0 to 100% inclusive |
 | [pipeline_tb.sv](tb/pipeline_tb.sv) | XSIM | Modelling a pipeline as a reference shift register and comparing under a random stall pattern — a far stronger check than spot-checking frozen values. Also flush-while-stalled, adder trees at six values of N, and two loop-breaking accumulators bit-exact against a plain one |
@@ -222,7 +231,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 
 ## `../formal/` — SymbiYosys proofs
 
-20 modules, 48 tasks, run by `make formal` or `formal/run_all.sh`.
+21 modules, 51 tasks, run by `make formal` or `formal/run_all.sh`.
 
 | Proof | Mode | What it settles |
 |---|---|---|
@@ -241,6 +250,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [div_restoring_fv](../formal/div_restoring_fv.sv) | **prove** + bmc + cover | `q*d + r == n` and `r < d` |
 | [sync_fifo_fv](../formal/sync_fifo_fv.sv) | bmc + cover | flags, level and data integrity to depth 30 — induction stated as not closing rather than claimed |
 | [fsm_three_process_fv](../formal/fsm_three_process_fv.sv) | **prove** + bmc + cover | registered outputs stay aligned with their state, for all time; and bounded equivalence with the combinational-output style |
+| [axil_slave_fv](../formal/axil_slave_fv.sv) | **prove** + bmc + cover | transfer accounting: no response is invented or duplicated, stated as a wrap-safe modular difference |
 | [watchdog_fv](../formal/watchdog_fv.sv) | **prove** + bmc + cover | expiry is sticky and never spurious; the two fault causes stay distinguishable |
 | [pwm_fv](../formal/pwm_fv.sv) | **prove** + bmc + cover | the 0% and 100% endpoints are clean, under a stable-period assumption |
 | [cdc_handshake_fv](../formal/cdc_handshake_fv.sv) | **prove** + bmc + cover | data held stable while the request is outstanding; scope limits stated in the harness |

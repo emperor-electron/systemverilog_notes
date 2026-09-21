@@ -15,7 +15,7 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
 | **[docs/](docs/)** | 35 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 71 synthesizable modules, 2 packages, 2 runnable language demos, 11 testbenches and 20 formal proofs, all verified. See [examples/README.md](examples/README.md). |
+| **[examples/](examples/)** | 74 synthesizable modules, 2 packages, 2 runnable language demos, 12 testbenches and 21 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
 correct:
@@ -250,12 +250,13 @@ independently-written reference, not against itself.
 | `skid_buffer_tb` | handshake protocol compliance **and full throughput** (3998 beats in 4000 cycles) — the property a naively registered stage fails |
 | `rtl_smoke_tb` | arbiters (exhaustive + fairness), encoders (exhaustive), Gray codec, CRC-32 known-answer (`0xCBF43926`), LFSR maximal-length, counter, shift register, UART loopback |
 | `pipeline_tb` | delay lines modelled against a reference shift register under a random 40% stall pattern; flush-while-stalled; adder trees for N = 1,2,3,5,8,16 signed and unsigned; carry-save and interleaved accumulators bit-exact against a plain accumulator; operand isolation in both modes |
+| `bus_tb` | APB and AXI4-Lite fronting identical register banks; byte strobes, SLVERR paths, response backpressure, AXI channel ordering all three ways, and the W1C set-beats-clear race |
 | `serial_tb` | SPI master against the SPI slave in all four modes and both bit orders, both directions per transfer; I2C against a behavioural slave on a wired-AND bus, covering ACK, NACK, an unaddressed device and clock stretching |
 | `periph_tb` | divider tick spacing and enable gating, a genuinely bouncing contact, the windowed watchdog's early and late faults, and a PWM duty sweep across every duty from 0 to 100% |
 | `fsm_tb` | the two-process, one-process and three-process styles proved to produce identical waveforms over 64 cycles of arbitrary stalling; explicit one-hot; and all 12 illegal encodings of a one-hot FSM injected by `force`, showing the safe variant recovering in one cycle and the unsafe one absorbing |
 | `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
 
-### Proved (SymbiYosys) — 20 modules, 48 tasks
+### Proved (SymbiYosys) — 21 modules, 51 tasks
 
 Formal does what simulation cannot: it *searches* the input space rather than
 sampling it.
@@ -272,6 +273,7 @@ sampling it.
 | `gray_counter`, `ring_counter` | **unbounded**: single-bit change; one-hot preserved *and* reachable |
 | `sync_fifo` | flag/level consistency and data integrity, bounded to depth 30 (the induction is stated as not closing, rather than claimed) |
 | `fsm_three_process` | **unbounded**: registered outputs stay aligned with their state — registering them costs no latency; plus bounded equivalence with the combinational-output version |
+| `axil_slave` | **unbounded**: transfer accounting on all five AXI4-Lite channels — no response invented, none duplicated — with the manager's obligations as assumptions and any register bank behind it |
 | `watchdog` | **unbounded**: an expiry is sticky until acknowledged and never spurious — the property that makes a watchdog reset attributable after the fact |
 | `pwm` | **unbounded**: 0% duty never goes high and 100% never goes low, under a stable-period assumption |
 | `cdc_handshake` | **unbounded**: the bus is held stable for the whole time its request is outstanding — the single-domain rule the crossing rests on. Deliberately *not* a proof that the crossing is safe; see docs/28 |

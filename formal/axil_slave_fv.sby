@@ -1,0 +1,23 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 20
+prove: mode prove
+cover: mode cover
+cover: depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL axil_slave.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL axil_slave_fv.sv
+prep -top axil_slave_fv
+
+[files]
+../examples/rtl/axil_slave.sv
+axil_slave_fv.sv
