@@ -58,7 +58,7 @@ ALL_SRCS   = $(PKGS) $(RTL_SRCS) $(ARITH_SRCS)
 # Two of the "testbenches" are standalone language demos in examples/arith;
 # the rest are in examples/tb. The mapping is resolved in the run rule.
 SIM_TESTS = signedness width_rules fp arith fifo async_fifo skid smoke \
-            pipeline techniques fsm
+            pipeline techniques fsm periph
 
 TOP_signedness  = signedness_demo
 TOP_width_rules = width_rules_tb
@@ -71,6 +71,7 @@ TOP_smoke       = rtl_smoke_tb
 TOP_pipeline    = pipeline_tb
 TOP_techniques  = techniques_tb
 TOP_fsm         = fsm_tb
+TOP_periph      = periph_tb
 
 # The two demos need no extra file beyond ALL_SRCS; the others add their TB.
 EXTRA_signedness  =
@@ -84,6 +85,7 @@ EXTRA_smoke       = $(TB_DIR)/rtl_smoke_tb.sv
 EXTRA_pipeline    = $(TB_DIR)/pipeline_tb.sv
 EXTRA_techniques  = $(TB_DIR)/techniques_tb.sv
 EXTRA_fsm         = $(TB_DIR)/fsm_tb.sv
+EXTRA_periph      = $(TB_DIR)/periph_tb.sv
 
 .PHONY: all lint sim formal clean $(SIM_TESTS)
 

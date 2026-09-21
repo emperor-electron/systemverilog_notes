@@ -1,6 +1,6 @@
 # Examples
 
-All 74 example files analyse cleanly under `xvlog` and are latch-checked by
+All 82 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -96,6 +96,18 @@ The first four implement the same controller, so they can be compared directly
 waveforms, which is the point: the choice between them is about timing and
 maintainability, not behaviour. See
 [docs/26](../docs/26-fsm-coding-styles.md).
+
+### Timers and I/O peripherals
+
+| File | What it shows |
+|---|---|
+| [clk_div_en.sv](rtl/clk_div_en.sv) | a periodic **enable**, not a divided clock — the module that should exist wherever someone is about to clock off a flop output |
+| [edge_detect.sv](rtl/edge_detect.sv) | rise / fall / any, with the reset value of the delayed copy as a parameter |
+| [pulse_extend.sv](rtl/pulse_extend.sv) | stretch a 1-cycle pulse to N, with retriggering as a parameter |
+| [debounce.sv](rtl/debounce.sv) | an integrator, not a one-shot — a glitch restarts the count |
+| [watchdog.sv](rtl/watchdog.sv) | **windowed** watchdog: rejects kicks that are too early as well as too late, with a sticky expiry |
+| [pwm.sv](rtl/pwm.sv) | PWM whose 0% and 100% endpoints are both clean, with the duty shadowed per period |
+| [hex7seg.sv](rtl/hex7seg.sv) | hex to seven-segment, both polarities |
 
 ### Serial interfaces
 
@@ -196,6 +208,7 @@ fp32 configuration is covered by the reference model in
 | [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | XSIM | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
 | [techniques_tb.sv](tb/techniques_tb.sv) | XSIM | The structural-technique modules, each against an independent reference: insertion sort, the `*` and `/` operators being replaced, a recomputed reciprocal table, and a forced-corruption test of ring-counter self-correction |
 | [fsm_tb.sv](tb/fsm_tb.sv) | XSIM | Three FSM styles compared cycle-for-cycle under stalling stimulus, and fault injection of all 12 illegal encodings of a one-hot state vector. Also two testbench traps worth knowing: driving stimulus on the sampling edge, and letting X reach a DUT whose test has not started yet |
+| [periph_tb.sv](tb/periph_tb.sv) | XSIM | The timer and I/O peripherals: divider tick spacing and enable gating, debounce against a genuinely bouncing input, the windowed watchdog's early and late faults, and a PWM duty sweep that measures every duty from 0 to 100% inclusive |
 | [pipeline_tb.sv](tb/pipeline_tb.sv) | XSIM | Modelling a pipeline as a reference shift register and comparing under a random stall pattern — a far stronger check than spot-checking frozen values. Also flush-while-stalled, adder trees at six values of N, and two loop-breaking accumulators bit-exact against a plain one |
 
 Every testbench has a global timeout, prints a definite PASS/FAIL, and
@@ -205,7 +218,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 
 ## `../formal/` — SymbiYosys proofs
 
-18 modules, 42 tasks, run by `make formal` or `formal/run_all.sh`.
+20 modules, 48 tasks, run by `make formal` or `formal/run_all.sh`.
 
 | Proof | Mode | What it settles |
 |---|---|---|
@@ -224,6 +237,8 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [div_restoring_fv](../formal/div_restoring_fv.sv) | **prove** + bmc + cover | `q*d + r == n` and `r < d` |
 | [sync_fifo_fv](../formal/sync_fifo_fv.sv) | bmc + cover | flags, level and data integrity to depth 30 — induction stated as not closing rather than claimed |
 | [fsm_three_process_fv](../formal/fsm_three_process_fv.sv) | **prove** + bmc + cover | registered outputs stay aligned with their state, for all time; and bounded equivalence with the combinational-output style |
+| [watchdog_fv](../formal/watchdog_fv.sv) | **prove** + bmc + cover | expiry is sticky and never spurious; the two fault causes stay distinguishable |
+| [pwm_fv](../formal/pwm_fv.sv) | **prove** + bmc + cover | the 0% and 100% endpoints are clean, under a stable-period assumption |
 | [cdc_handshake_fv](../formal/cdc_handshake_fv.sv) | **prove** + bmc + cover | data held stable while the request is outstanding; scope limits stated in the harness |
 | [select_styles_fv](../formal/select_styles_fv.sv) | bmc + cover | **exhaustive**: three priority spellings are one circuit; the parallel form differs unless `$onehot0(req)` |
 | [fsm_safe_fv](../formal/fsm_safe_fv.sv) | **recover** + prove + bmc + cover | recovery from all 12 illegal encodings, by BMC from a free initial state |
