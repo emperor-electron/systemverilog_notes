@@ -1,6 +1,6 @@
 # Examples
 
-All 82 example files analyse cleanly under `xvlog` and are latch-checked by
+All 86 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -113,6 +113,9 @@ maintainability, not behaviour. See
 
 | File | What it shows |
 |---|---|
+| [spi_master.sv](rtl/spi_master.sv) | all four SPI modes and both bit orders; CPOL/CPHA reduce to *which edge samples*, and the load path differs only because of what that means at the first edge |
+| [spi_slave.sv](rtl/spi_slave.sv) | oversampled in the **system** clock domain — SCLK is treated as an asynchronous input, not as a clock |
+| [i2c_master.sv](rtl/i2c_master.sv) | open-drain bus, four-phase bit timing, **clock stretching** and arbitration loss, with a byte-level command interface |
 | [uart_tx.sv](rtl/uart_tx.sv) | 8N1 transmitter |
 | [uart_rx.sv](rtl/uart_rx.sv) | 8N1 receiver: recovers the bit clock from the start edge and samples at each bit's **midpoint** |
 
@@ -208,6 +211,7 @@ fp32 configuration is covered by the reference model in
 | [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | XSIM | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
 | [techniques_tb.sv](tb/techniques_tb.sv) | XSIM | The structural-technique modules, each against an independent reference: insertion sort, the `*` and `/` operators being replaced, a recomputed reciprocal table, and a forced-corruption test of ring-counter self-correction |
 | [fsm_tb.sv](tb/fsm_tb.sv) | XSIM | Three FSM styles compared cycle-for-cycle under stalling stimulus, and fault injection of all 12 illegal encodings of a one-hot state vector. Also two testbench traps worth knowing: driving stimulus on the sampling edge, and letting X reach a DUT whose test has not started yet |
+| [serial_tb.sv](tb/serial_tb.sv) | XSIM | SPI master wired **to the slave**, exchanging bytes in both directions across all four modes and both bit orders — a sign error in "which edge samples" cannot cancel out, because the master runs on the system clock and the slave oversamples. I2C runs against a behavioural slave on a wired-AND bus, covering ACK, NACK, an unaddressed device and clock stretching |
 | [periph_tb.sv](tb/periph_tb.sv) | XSIM | The timer and I/O peripherals: divider tick spacing and enable gating, debounce against a genuinely bouncing input, the windowed watchdog's early and late faults, and a PWM duty sweep that measures every duty from 0 to 100% inclusive |
 | [pipeline_tb.sv](tb/pipeline_tb.sv) | XSIM | Modelling a pipeline as a reference shift register and comparing under a random stall pattern — a far stronger check than spot-checking frozen values. Also flush-while-stalled, adder trees at six values of N, and two loop-breaking accumulators bit-exact against a plain one |
 

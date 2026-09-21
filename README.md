@@ -15,7 +15,7 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
 | **[docs/](docs/)** | 35 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 68 synthesizable modules, 2 packages, 2 runnable language demos, 10 testbenches and 20 formal proofs, all verified. See [examples/README.md](examples/README.md). |
+| **[examples/](examples/)** | 71 synthesizable modules, 2 packages, 2 runnable language demos, 11 testbenches and 20 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
 correct:
@@ -250,6 +250,8 @@ independently-written reference, not against itself.
 | `skid_buffer_tb` | handshake protocol compliance **and full throughput** (3998 beats in 4000 cycles) — the property a naively registered stage fails |
 | `rtl_smoke_tb` | arbiters (exhaustive + fairness), encoders (exhaustive), Gray codec, CRC-32 known-answer (`0xCBF43926`), LFSR maximal-length, counter, shift register, UART loopback |
 | `pipeline_tb` | delay lines modelled against a reference shift register under a random 40% stall pattern; flush-while-stalled; adder trees for N = 1,2,3,5,8,16 signed and unsigned; carry-save and interleaved accumulators bit-exact against a plain accumulator; operand isolation in both modes |
+| `serial_tb` | SPI master against the SPI slave in all four modes and both bit orders, both directions per transfer; I2C against a behavioural slave on a wired-AND bus, covering ACK, NACK, an unaddressed device and clock stretching |
+| `periph_tb` | divider tick spacing and enable gating, a genuinely bouncing contact, the windowed watchdog's early and late faults, and a PWM duty sweep across every duty from 0 to 100% |
 | `fsm_tb` | the two-process, one-process and three-process styles proved to produce identical waveforms over 64 cycles of arbitrary stalling; explicit one-hot; and all 12 illegal encodings of a one-hot FSM injected by `force`, showing the safe variant recovering in one cycle and the unsafe one absorbing |
 | `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
 
