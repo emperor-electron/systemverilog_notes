@@ -1,6 +1,6 @@
 # Examples
 
-All 97 example files analyse cleanly under `xvlog` and are latch-checked by
+All 101 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -78,6 +78,7 @@ modules Yosys's frontend cannot read.
 | [axis_downsizer.sv](rtl/axis_downsizer.sv) | wide to narrow, honouring TKEEP so a short word does not become a padded packet with TLAST in the wrong place |
 | [irq_ctrl.sv](rtl/irq_ctrl.sv) | latch, mask and prioritise — masking hides an interrupt without discarding it |
 | [quad_decoder.sv](rtl/quad_decoder.sv) | quadrature decode as a Gray walk, with an illegal transition reported rather than silently counted as two |
+| [timer.sv](rtl/timer.sv) | one-shot or periodic, counting **down** so the terminal condition is a NOR rather than a wide comparator |
 | [seven_seg_mux.sv](rtl/seven_seg_mux.sv) | multiplexed display driver with inter-digit blanking to stop ghosting |
 | [gpio.sv](rtl/gpio.sv) | output enable rather than tristate, and no way to read a pad except through the synchronizer |
 
@@ -87,6 +88,8 @@ modules Yosys's frontend cannot read.
 |---|---|
 | [csr_bank.sv](rtl/csr_bank.sv) | RW / RO / **W1C** register semantics behind a generic port, deliberately not tied to a bus — with the set-beats-clear rule that stops a W1C clear from swallowing an event |
 | [apb_slave.sv](rtl/apb_slave.sv) | APB4 completer: registered `pready`, and `ren`/`wen` pulsed exactly once so a side-effecting register is not accessed during SETUP |
+| [wb_slave.sv](rtl/wb_slave.sv) | Wishbone B4 classic: qualified on CYC **and** STB, with a registered ACK |
+| [uart_periph.sv](rtl/uart_periph.sv) | a whole UART peripheral — TX/RX, two FIFOs, a register map — assembled from parts verified separately, so only the wiring is new |
 | [axil_slave.sv](rtl/axil_slave.sv) | AXI4-Lite subordinate: AW and W accepted **in either order**, every `ready` a function of registers only, exactly one B per write |
 
 ### Memory
@@ -230,6 +233,7 @@ fp32 configuration is covered by the reference model in
 | [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | XSIM | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
 | [techniques_tb.sv](tb/techniques_tb.sv) | XSIM | The structural-technique modules, each against an independent reference: insertion sort, the `*` and `/` operators being replaced, a recomputed reciprocal table, and a forced-corruption test of ring-counter self-correction |
 | [fsm_tb.sv](tb/fsm_tb.sv) | XSIM | Three FSM styles compared cycle-for-cycle under stalling stimulus, and fault injection of all 12 illegal encodings of a one-hot state vector. Also two testbench traps worth knowing: driving stimulus on the sampling edge, and letting X reach a DUT whose test has not started yet |
+| [integration_tb.sv](tb/integration_tb.sv) | XSIM | A whole UART peripheral driven through a real Wishbone slave with TX looped back to RX, so every byte survives the transmitter, the wire, the receiver, both FIFOs and the bus. Plus one-shot and periodic timing, and the CYC-without-STB case |
 | [sysmod_tb.sv](tb/sysmod_tb.sv) | XSIM | Interrupt latching/masking/priority including a set arriving in the same cycle as its clear; quadrature forward, reverse and illegal transitions; an upsizer→downsizer **round trip** at packet lengths that are and are not multiples of the ratio; one-hot digit select; and GPIO synchronizer latency |
 | [bus_tb.sv](tb/bus_tb.sv) | XSIM | APB and AXI4-Lite each fronting an identical register bank, so a failure through one bus and not the other is a bus bug and one through both is a register bug. Covers byte strobes, SLVERR on a read-only write and on an unmapped address, response backpressure, AXI channel ordering all three ways, and a W1C set arriving in the same cycle as its clear |
 | [serial_tb.sv](tb/serial_tb.sv) | XSIM | SPI master wired **to the slave**, exchanging bytes in both directions across all four modes and both bit orders — a sign error in "which edge samples" cannot cancel out, because the master runs on the system clock and the slave oversamples. I2C runs against a behavioural slave on a wired-AND bus, covering ACK, NACK, an unaddressed device and clock stretching |
