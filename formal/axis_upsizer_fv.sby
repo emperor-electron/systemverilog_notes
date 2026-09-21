@@ -1,0 +1,23 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 20
+prove: mode prove
+cover: mode cover
+cover: depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL axis_upsizer.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL axis_upsizer_fv.sv
+prep -top axis_upsizer_fv
+
+[files]
+../examples/rtl/axis_upsizer.sv
+axis_upsizer_fv.sv
