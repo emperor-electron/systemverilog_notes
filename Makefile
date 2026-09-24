@@ -50,15 +50,22 @@ FV_DIR    = formal
 BUILD     = build
 
 # Packages must be analysed before anything that imports them.
-PKGS       = $(ARITH_DIR)/fp_pkg.sv $(ARITH_DIR)/fixed_pkg.sv
-RTL_SRCS   = $(wildcard $(RTL_DIR)/*.sv)
+PKGS       = $(ARITH_DIR)/fp_pkg.sv $(ARITH_DIR)/fixed_pkg.sv \
+             $(RTL_DIR)/vid_pkg.sv
+
+# The subset of PKGS that the Yosys frontend can actually read, for the
+# per-module latch check below. fp_pkg.sv is not in it, and handing it to yosys
+# alongside every module makes EVERY module report as unreadable rather than
+# checked -- which is how this variable came to exist.
+YOSYS_PKGS = $(RTL_DIR)/vid_pkg.sv
+RTL_SRCS   = $(filter-out $(PKGS),$(wildcard $(RTL_DIR)/*.sv))
 ARITH_SRCS = $(filter-out $(PKGS),$(wildcard $(ARITH_DIR)/*.sv))
 ALL_SRCS   = $(PKGS) $(RTL_SRCS) $(ARITH_SRCS)
 
 # Two of the "testbenches" are standalone language demos in examples/arith;
 # the rest are in examples/tb. The mapping is resolved in the run rule.
 SIM_TESTS = signedness width_rules fp arith fifo async_fifo skid smoke \
-            pipeline techniques fsm periph serial bus sysmod integ
+            pipeline techniques fsm periph serial bus sysmod integ video
 
 TOP_signedness  = signedness_demo
 TOP_width_rules = width_rules_tb
@@ -76,6 +83,7 @@ TOP_serial      = serial_tb
 TOP_bus         = bus_tb
 TOP_sysmod      = sysmod_tb
 TOP_integ       = integration_tb
+TOP_video       = video_tb
 
 # The two demos need no extra file beyond ALL_SRCS; the others add their TB.
 EXTRA_signedness  =
@@ -94,6 +102,7 @@ EXTRA_serial      = $(TB_DIR)/serial_tb.sv
 EXTRA_bus         = $(TB_DIR)/bus_tb.sv
 EXTRA_sysmod      = $(TB_DIR)/sysmod_tb.sv
 EXTRA_integ       = $(TB_DIR)/integration_tb.sv
+EXTRA_video       = $(TB_DIR)/video_tb.sv
 
 .PHONY: all lint sim formal clean $(SIM_TESTS)
 
@@ -123,7 +132,7 @@ lint:
 	for src in $(RTL_SRCS) $(ARITH_SRCS); do \
 	  m=$$(basename $$src .sv); \
 	  case $$m in signedness_demo|width_rules_tb) continue;; esac; \
-	  o=$$($(YOSYS) -p "read_verilog -sv -DSYNTHESIS $$src; hierarchy -top $$m; proc" 2>&1); \
+	  o=$$($(YOSYS) -p "read_verilog -sv -DSYNTHESIS $(YOSYS_PKGS) $$src; hierarchy -top $$m; proc" 2>&1); \
 	  if echo "$$o" | grep -q "ERROR: Latch inferred"; then \
 	    echo "=== inferred latch in $$m ==="; \
 	    echo "$$o" | grep "ERROR: Latch inferred" | head -3; f=1; \

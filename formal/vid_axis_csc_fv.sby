@@ -1,0 +1,35 @@
+[tasks]
+bmc
+prove
+ident
+basis
+cover
+
+[options]
+# Coefficients free: the clamp holds for EVERY matrix, not just tested ones.
+bmc:   mode bmc
+bmc:   depth 12
+prove: mode prove
+# Coefficients pinned to the identity: catches data-layout mistakes.
+ident: mode prove
+# One free basis entry: catches a transposed COEFFICIENT index, which the
+# identity task cannot -- the identity matrix is symmetric.
+basis: mode prove
+cover: mode cover
+cover: depth 12
+
+[engines]
+smtbmc boolector
+
+[script]
+ident: verilog_defines -DIDENTITY
+basis: verilog_defines -DBASIS
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL vid_pkg.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL vid_axis_csc.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL vid_axis_csc_fv.sv
+prep -top vid_axis_csc_fv
+
+[files]
+../examples/rtl/vid_pkg.sv
+../examples/rtl/vid_axis_csc.sv
+vid_axis_csc_fv.sv

@@ -14,8 +14,8 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 36 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 83 synthesizable modules, 2 packages, 2 runnable language demos, 14 testbenches and 22 formal proofs, all verified. See [examples/README.md](examples/README.md). |
+| **[docs/](docs/)** | 37 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[examples/](examples/)** | 86 synthesizable modules, 3 packages, 2 runnable language demos, 15 testbenches and 23 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
 correct:
@@ -37,6 +37,12 @@ And one on the block every digital designer writes:
 - **[FSM coding styles](docs/26-fsm-coding-styles.md)** — the four styles and
   what each costs, why registering FSM outputs need not add a cycle, state
   encoding, and what a design does in the state encodings you did not plan for.
+
+And one on writing RTL that is generic in its data shape:
+
+- **[Parameterized video pipelines](docs/37-parameterized-video-pipelines.md)** —
+  unpacked arrays and generate loops for a stream of N pixels per clock, P
+  components per pixel and B bits per component, flat on the wire throughout.
 
 And one on the blocks every design ends up containing:
 
@@ -162,6 +168,7 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [37](docs/37-parameterized-video-pipelines.md) | Writing video RTL generic in pixels-per-clock, components-per-pixel and bits-per-component: the layout convention, unpack/work/repack, generate-replicates vs procedural-reduces, accumulator sizing, the signedness traps, memory geometry, sideband latency matching, and how to test a claim about *all* parameter values |
 | [36](docs/36-common-peripheral-modules.md) | The catalogue of common peripherals and what each one's load-bearing decision is; the generic-register-port pattern that puts one peripheral on any of three buses; six rules that keep recurring (enable not clock, synchronize once, set beats clear, one-cycle strobes, drop-and-record, degenerate parameters); and the bugs hit building them |
 | [35](docs/35-low-power-architecture.md) | Where power goes and the hierarchy of savings, power domains, isolation and choosing a clamp value per signal, retention and its cheaper alternatives, level shifters, DVFS ordering, what the RTL must still provide for power intent to be implementable, and why a plain RTL testbench verifies none of it |
 | [34](docs/34-coding-conventions-and-reuse.md) | The conventions used throughout this repository and the failure each one prevents: file structure, naming, types, reset policy, parameterisation and degenerate cases, elaboration-time checking, which properties belong in a module versus its harness, lint policy, and a review checklist |
@@ -257,6 +264,7 @@ independently-written reference, not against itself.
 | `skid_buffer_tb` | handshake protocol compliance **and full throughput** (3998 beats in 4000 cycles) — the property a naively registered stage fails |
 | `rtl_smoke_tb` | arbiters (exhaustive + fairness), encoders (exhaustive), Gray codec, CRC-32 known-answer (`0xCBF43926`), LFSR maximal-length, counter, shift register, UART loopback |
 | `pipeline_tb` | delay lines modelled against a reference shift register under a random 40% stall pattern; flush-while-stalled; adder trees for N = 1,2,3,5,8,16 signed and unsigned; carry-save and interleaved accumulators bit-exact against a plain accumulator; operand isolation in both modes |
+| `video_tb` | the video set built five times at (N,P,B) = (1,1,8) (2,3,8) (4,3,10) (2,4,12) (1,3,16) — a reference model, bit-exact identity pass-through, saturation, and line-buffer tap alignment against a frame model |
 | `integration_tb` | a whole UART peripheral behind a real Wishbone slave with TX looped to RX — every byte survives the transmitter, the wire, the receiver, both FIFOs and the bus in both directions; plus timer modes and the CYC-without-STB case |
 | `sysmod_tb` | interrupt latch/mask/priority with a set-beats-clear race; quadrature forward, reverse and illegal transitions; an AXI-Stream round trip at lengths on and off the ratio boundary; seven-segment one-hot select; GPIO synchronizer latency |
 | `bus_tb` | APB and AXI4-Lite fronting identical register banks; byte strobes, SLVERR paths, response backpressure, AXI channel ordering all three ways, and the W1C set-beats-clear race |
@@ -265,7 +273,7 @@ independently-written reference, not against itself.
 | `fsm_tb` | the two-process, one-process and three-process styles proved to produce identical waveforms over 64 cycles of arbitrary stalling; explicit one-hot; and all 12 illegal encodings of a one-hot FSM injected by `force`, showing the safe variant recovering in one cycle and the unsafe one absorbing |
 | `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
 
-### Proved (SymbiYosys) — 22 modules, 54 tasks
+### Proved (SymbiYosys) — 23 modules, 59 tasks
 
 Formal does what simulation cannot: it *searches* the input space rather than
 sampling it.
@@ -282,6 +290,7 @@ sampling it.
 | `gray_counter`, `ring_counter` | **unbounded**: single-bit change; one-hot preserved *and* reachable |
 | `sync_fifo` | flag/level consistency and data integrity, bounded to depth 30 (the induction is stated as not closing, rather than claimed) |
 | `fsm_three_process` | **unbounded**: registered outputs stay aligned with their state — registering them costs no latency; plus bounded equivalence with the combinational-output version |
+| `vid_axis_csc` | **unbounded**: rounding and saturation correct for **every** programmable colour matrix, not just the tested ones; plus identity pass-through and a basis-vector check that catches a transposed coefficient index |
 | `axis_upsizer` | **unbounded**: lane conservation — every input beat becomes exactly one lane of exactly one output beat, so a packet is never padded or truncated |
 | `axil_slave` | **unbounded**: transfer accounting on all five AXI4-Lite channels — no response invented, none duplicated — with the manager's obligations as assumptions and any register bank behind it |
 | `watchdog` | **unbounded**: an expiry is sticky until acknowledged and never spurious — the property that makes a watchdog reset attributable after the fact |

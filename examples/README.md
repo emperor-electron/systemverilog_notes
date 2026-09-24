@@ -1,6 +1,6 @@
 # Examples
 
-All 101 example files analyse cleanly under `xvlog` and are latch-checked by
+All 106 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -69,6 +69,18 @@ modules Yosys's frontend cannot read.
 | [lfsr_galois.sv](rtl/lfsr_galois.sv) | Galois form: one XOR on the critical path regardless of tap count |
 | [lfsr_fibonacci.sv](rtl/lfsr_fibonacci.sv) | Fibonacci form, for comparison |
 | [crc_parallel.sv](rtl/crc_parallel.sv) | N bits per cycle; a `for` loop that unrolls a bit-serial CRC into an XOR network at elaboration |
+
+### Parameterized video
+
+Generic in N pixels per clock, P components per pixel and B bits per component.
+See [docs/37](../docs/37-parameterized-video-pipelines.md).
+
+| File | What it shows |
+|---|---|
+| [vid_pkg.sv](rtl/vid_pkg.sv) | the bit-layout convention, written once so no module re-derives it |
+| [vid_axis_gain.sv](rtl/vid_axis_gain.sv) | the unpack / work / repack pattern, with per-component gain, rounding and saturation |
+| [vid_axis_csc.sv](rtl/vid_axis_csc.sv) | a P×P colour matrix on N pixels at once — **generate loops for replication, procedural loops for reduction**, in one module |
+| [vid_axis_line_buffer.sv](rtl/vid_axis_line_buffer.sv) | TAPS lines in parallel, with the trailing-write trick that aligns every tap without per-tap delay matching |
 
 ### Streams, interrupts and I/O
 
@@ -233,6 +245,7 @@ fp32 configuration is covered by the reference model in
 | [rtl_smoke_tb.sv](tb/rtl_smoke_tb.sv) | XSIM | Exhaustive checks where the state space allows, known-answer vectors (CRC-32), and structural properties (LFSR maximal length, arbiter fairness) |
 | [techniques_tb.sv](tb/techniques_tb.sv) | XSIM | The structural-technique modules, each against an independent reference: insertion sort, the `*` and `/` operators being replaced, a recomputed reciprocal table, and a forced-corruption test of ring-counter self-correction |
 | [fsm_tb.sv](tb/fsm_tb.sv) | XSIM | Three FSM styles compared cycle-for-cycle under stalling stimulus, and fault injection of all 12 illegal encodings of a one-hot state vector. Also two testbench traps worth knowing: driving stimulus on the sampling edge, and letting X reach a DUT whose test has not started yet |
+| [video_tb.sv](tb/video_tb.sv) | XSIM | The video set instantiated **five times over** at (N,P,B) = (1,1,8) (2,3,8) (4,3,10) (2,4,12) (1,3,16), including a degenerate single-component case and a bit depth that is not a multiple of 8. Checks a reference model, bit-exact identity pass-through, per-component gains that all differ, saturation at full scale, and line-buffer tap alignment against a frame model |
 | [integration_tb.sv](tb/integration_tb.sv) | XSIM | A whole UART peripheral driven through a real Wishbone slave with TX looped back to RX, so every byte survives the transmitter, the wire, the receiver, both FIFOs and the bus. Plus one-shot and periodic timing, and the CYC-without-STB case |
 | [sysmod_tb.sv](tb/sysmod_tb.sv) | XSIM | Interrupt latching/masking/priority including a set arriving in the same cycle as its clear; quadrature forward, reverse and illegal transitions; an upsizer→downsizer **round trip** at packet lengths that are and are not multiples of the ratio; one-hot digit select; and GPIO synchronizer latency |
 | [bus_tb.sv](tb/bus_tb.sv) | XSIM | APB and AXI4-Lite each fronting an identical register bank, so a failure through one bus and not the other is a bus bug and one through both is a register bug. Covers byte strobes, SLVERR on a read-only write and on an unmapped address, response backpressure, AXI channel ordering all three ways, and a W1C set arriving in the same cycle as its clear |
@@ -247,7 +260,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 
 ## `../formal/` — SymbiYosys proofs
 
-22 modules, 54 tasks, run by `make formal` or `formal/run_all.sh`.
+23 modules, 59 tasks, run by `make formal` or `formal/run_all.sh`.
 
 | Proof | Mode | What it settles |
 |---|---|---|
@@ -266,6 +279,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [div_restoring_fv](../formal/div_restoring_fv.sv) | **prove** + bmc + cover | `q*d + r == n` and `r < d` |
 | [sync_fifo_fv](../formal/sync_fifo_fv.sv) | bmc + cover | flags, level and data integrity to depth 30 — induction stated as not closing rather than claimed |
 | [fsm_three_process_fv](../formal/fsm_three_process_fv.sv) | **prove** + bmc + cover | registered outputs stay aligned with their state, for all time; and bounded equivalence with the combinational-output style |
+| [vid_axis_csc_fv](../formal/vid_axis_csc_fv.sv) | **prove** + bmc + **ident** + **basis** + cover | the clamp holds for *every* programmable matrix (coefficients left free); identity in gives identity out; and a one-hot basis matrix catches a transposed coefficient index, which identity provably cannot |
 | [axis_upsizer_fv](../formal/axis_upsizer_fv.sv) | **prove** + bmc + cover | lane conservation: every input beat becomes exactly one lane of exactly one output beat |
 | [axil_slave_fv](../formal/axil_slave_fv.sv) | **prove** + bmc + cover | transfer accounting: no response is invented or duplicated, stated as a wrap-safe modular difference |
 | [watchdog_fv](../formal/watchdog_fv.sv) | **prove** + bmc + cover | expiry is sticky and never spurious; the two fault causes stay distinguishable |
