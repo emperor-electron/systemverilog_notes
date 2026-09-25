@@ -15,7 +15,7 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
 | **[docs/](docs/)** | 37 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 86 synthesizable modules, 3 packages, 2 runnable language demos, 15 testbenches and 23 formal proofs, all verified. See [examples/README.md](examples/README.md). |
+| **[examples/](examples/)** | 90 synthesizable modules, 3 packages, 2 runnable language demos, 16 testbenches and 26 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
 correct:
@@ -42,7 +42,9 @@ And one on writing RTL that is generic in its data shape:
 
 - **[Parameterized video pipelines](docs/37-parameterized-video-pipelines.md)** —
   unpacked arrays and generate loops for a stream of N pixels per clock, P
-  components per pixel and B bits per component, flat on the wire throughout.
+  components per pixel and B bits per component, flat on the wire throughout;
+  what those loops actually unroll into, dumped out of the tools; and a 3x3
+  median and Sobel filter built on a shared sliding window.
 
 And one on the blocks every design ends up containing:
 
@@ -168,7 +170,7 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
-| [37](docs/37-parameterized-video-pipelines.md) | Writing video RTL generic in pixels-per-clock, components-per-pixel and bits-per-component: the layout convention, unpack/work/repack, generate-replicates vs procedural-reduces, accumulator sizing, the signedness traps, memory geometry, sideband latency matching, and how to test a claim about *all* parameter values |
+| [37](docs/37-parameterized-video-pipelines.md) | Writing video RTL generic in pixels-per-clock, components-per-pixel and bits-per-component: the layout convention, unpack/work/repack, generate-replicates vs procedural-reduces and **what each kind of loop unrolls into**, accumulator sizing, the signedness traps, memory geometry, the halo problem a sliding window has at N pixels per clock, a median and a Sobel filter on one window, sideband latency matching, and how to test a claim about *all* parameter values |
 | [36](docs/36-common-peripheral-modules.md) | The catalogue of common peripherals and what each one's load-bearing decision is; the generic-register-port pattern that puts one peripheral on any of three buses; six rules that keep recurring (enable not clock, synchronize once, set beats clear, one-cycle strobes, drop-and-record, degenerate parameters); and the bugs hit building them |
 | [35](docs/35-low-power-architecture.md) | Where power goes and the hierarchy of savings, power domains, isolation and choosing a clamp value per signal, retention and its cheaper alternatives, level shifters, DVFS ordering, what the RTL must still provide for power intent to be implementable, and why a plain RTL testbench verifies none of it |
 | [34](docs/34-coding-conventions-and-reuse.md) | The conventions used throughout this repository and the failure each one prevents: file structure, naming, types, reset policy, parameterisation and degenerate cases, elaboration-time checking, which properties belong in a module versus its harness, lint policy, and a review checklist |
@@ -188,8 +190,8 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 ```bash
 make            # lint, then simulate, then prove
 make lint       # xvlog analysis + yosys structural checks
-make sim        # all 10 testbenches under XSIM
-make formal     # all 30 proof tasks under SymbiYosys
+make sim        # all 18 testbenches under XSIM
+make formal     # all 70 proof tasks under SymbiYosys
 make fp         # one target (see the Makefile for the list)
 make clean
 ```
@@ -273,7 +275,7 @@ independently-written reference, not against itself.
 | `fsm_tb` | the two-process, one-process and three-process styles proved to produce identical waveforms over 64 cycles of arbitrary stalling; explicit one-hot; and all 12 illegal encodings of a one-hot FSM injected by `force`, showing the safe variant recovering in one cycle and the unsafe one absorbing |
 | `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
 
-### Proved (SymbiYosys) — 23 modules, 59 tasks
+### Proved (SymbiYosys) — 26 modules, 70 tasks
 
 Formal does what simulation cannot: it *searches* the input space rather than
 sampling it.
@@ -284,6 +286,9 @@ sampling it.
 | `mul_const`, `div_const` | **exhaustive** equivalence with `*`, `/` and `%`; CSD and binary encodings proved equal |
 | `bin2bcd` | every nibble a legal digit **and** the digits equal the input |
 | `sort_network` | sortedness and multiset preservation at W=1 — **complete for every width** by Knuth's 0-1 principle |
+| `median9_net` | a 19-comparator median network equals element 4 of a **full sort** at W=1 — complete for every width by the same principle; plus a characterisation of "median" that mentions no algorithm at all |
+| `vid_axis_win3` | the sliding-window builder never overwrites an unemitted beat, and the beats in flight are accounted for **exactly** — a bound alone does not close under induction |
+| `vid_axis_sobel` | the clamp is a clamp; a flat patch has no gradient; and the two orientation properties that can catch a transposed window index, which the output provably cannot |
 | `skid_buffer` | **unbounded**: no loss, no duplication, no reordering, for all time |
 | `pipe_ctrl` | **unbounded**: full equivalence with a reference shift register; flush clears even while stalled |
 | `div_restoring` | **unbounded**: `q*d + r == n` and `r < d` — the specification of integer division |

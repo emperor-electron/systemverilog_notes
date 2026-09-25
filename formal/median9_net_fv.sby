@@ -1,0 +1,34 @@
+[tasks]
+equiv
+wide
+cover
+
+[options]
+# Both networks are combinational: one step is the entire input space, so this
+# is a complete proof and not a bounded one. See the harness header.
+equiv: mode bmc
+equiv: depth 1
+wide:  mode bmc
+wide:  depth 1
+# The COVER statements need one more step than the assertions do: an assertion
+# in an `always @(posedge clk)` block is checked in step 0, but a cover point is
+# only recorded once a clock edge has occurred. Measured -- at depth 1 all three
+# covers came back "unreached" while the assertions were doing real work (a
+# mutated comparator network fails `equiv` at depth 1).
+cover: mode cover
+cover: depth 2
+
+[engines]
+smtbmc boolector
+
+[script]
+wide: verilog_defines -DW4
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL sort_network.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL median9_net.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL median9_net_fv.sv
+prep -top median9_net_fv
+
+[files]
+../examples/rtl/sort_network.sv
+../examples/rtl/median9_net.sv
+median9_net_fv.sv

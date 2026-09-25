@@ -1,0 +1,36 @@
+[tasks]
+bmc
+prove
+mirror
+transpose
+cover
+
+[options]
+bmc:       mode bmc
+bmc:       depth 8
+prove:     mode prove
+# The two symmetry tasks compare two instances, so they must start from reset:
+# under induction the two copies' output registers begin unrelated and the
+# equality fails for reasons that say nothing about the design.
+mirror:    mode bmc
+mirror:    depth 6
+transpose: mode bmc
+transpose: depth 6
+cover:     mode cover
+cover:     depth 8
+
+[engines]
+smtbmc boolector
+
+[script]
+mirror:    verilog_defines -DSYMMETRY
+transpose: verilog_defines -DSYMMETRY -DTRANSPOSE
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL vid_pkg.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL vid_axis_sobel.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL vid_axis_sobel_fv.sv
+prep -top vid_axis_sobel_fv
+
+[files]
+../examples/rtl/vid_pkg.sv
+../examples/rtl/vid_axis_sobel.sv
+vid_axis_sobel_fv.sv

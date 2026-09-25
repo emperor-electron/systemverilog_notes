@@ -316,6 +316,16 @@ forever                       ...    // [V] -- needs a time control inside
 break;  continue;  return;
 ```
 
+> **XSIM caveat, measured.** A `while` condition containing a **cast** is
+> evaluated as false, so the loop runs zero times — silently, with no error:
+> `while (k < int'(NBEATS))` never executes its body while
+> `$display("%b", (k < int'(NBEATS)))` prints `1` in the same scope. The
+> equivalent `for` loop is fine, and so is the uncast comparison. In a testbench
+> this means **checks that never run**, which is how a dead collector once let a
+> deliberately broken filter pass. Keep casts out of `while` conditions; the
+> reproducer and the probe table are in
+> [docs/37 section 13](37-parameterized-video-pipelines.md#13-tool-constraints-you-will-hit).
+
 Synthesizable loops are **unrolled at elaboration**. The loop bound must be a
 constant, and the body becomes N copies of the hardware:
 

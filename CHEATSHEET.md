@@ -456,6 +456,11 @@ only use `unique` where you can prove one-hot.
 `casex` treats `X` in the **case expression** as a wildcard, so an unknown value
 can match a real branch and mask a bug. Use `casez` (or `case ... inside`).
 
+XSIM, measured: a `while` condition containing a **cast** — `while (k < int'(N))`
+— is evaluated as false and the loop body never runs, with no error. `for` is
+fine, and so is the uncast comparison. See
+[docs/37 §13](docs/37-parameterized-video-pipelines.md#13-tool-constraints-you-will-hit).
+
 ---
 
 ## 10. Tasks and functions
@@ -559,6 +564,15 @@ endgenerate
 The `generate`/`endgenerate` keywords are optional in SystemVerilog; the
 `begin : label` is not, if you want predictable instance paths
 (`top.g_lane[3].u_lane`).
+
+A genvar loop is a **scope factory**, not a loop: the body is instantiated once
+per iteration, each time in its own named scope with the genvar replaced by a
+literal. So a declaration inside the body is replicated, there is no variable
+spanning iterations (hence no accumulation — reach into `g_lane[i-1].x`
+instead), and an elaboration-time function call in an index leaves behind a
+constant.
+[docs/37 §4](docs/37-parameterized-video-pipelines.md#4-how-the-loops-unroll)
+shows the unrolled forms, dumped out of the tools.
 
 Elaboration-time constant functions may compute parameters:
 
@@ -768,6 +782,12 @@ assert #0 (cond);           // deferred: re-evaluated at end of time step,
                             //   avoids glitch-induced false failures
 assert final (cond);        // evaluated at the end of simulation
 ```
+
+XSIM, measured: `$past()` of a **part-select of a wide vector** (parent wider
+than ~33 bits) can return a value that is none of the signal's previous, current
+or two-back samples — silently. `$past` of the whole vector is reliable; for one
+field of a wide bus, use an ordinary register. See
+[docs/37 §13](docs/37-parameterized-video-pipelines.md#13-tool-constraints-you-will-hit).
 
 ### Concurrent (SVA)
 

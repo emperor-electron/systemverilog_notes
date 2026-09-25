@@ -59,6 +59,27 @@ package vid_pkg;
     tdata_bits = N * P * B;
   endfunction
 
+  // Bit position of component `p` of pixel `n` in row `r` of a bundle of
+  // stacked rows, each `cols` pixels wide.
+  //
+  // This is the whole reason there is only ONE indexing rule in this family. A
+  // bundle of TAPS rows from a line buffer, and a window of ROWS x (N+2H)
+  // pixels, are both just longer pixel arrays in the same layout, so flattening
+  // (r, n) into a single pixel index r*cols + n makes comp_lsb serve all three.
+  // Pass N for a row bundle and N+2H for a window.
+  function automatic int unsigned rowpix_lsb(input int unsigned r, n, p,
+                                             cols, P, B);
+    rowpix_lsb = comp_lsb((r * cols) + n, p, P, B);
+  endfunction
+
+  // Columns in a window of N pixels per clock with a halo of `halo` pixels on
+  // each side. A halo of `halo` needs `halo` pixels from the beat before and
+  // after, so it requires halo <= N -- otherwise the window spans more than
+  // three beats and one beat of lookahead is not enough.
+  function automatic int unsigned win_cols(input int unsigned N, halo);
+    win_cols = N + (2 * halo);
+  endfunction
+
   // Words needed to carry a line of `width` pixels at N pixels per clock,
   // rounded up: a line whose width is not a multiple of N still needs a final
   // partial word, and a line buffer sized by truncating division is short by one

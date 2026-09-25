@@ -161,6 +161,18 @@ $changed(x)              // !$stable(x)
 $sampled(x)              // x's sampled value (explicit, in procedural code)
 ```
 
+> **XSIM caveat, measured.** `$past()` of a **part-select of a wide vector**
+> (parent wider than about 33 bits) can return a value that is none of the
+> signal's previous, current or two-back samples — silently, with no error, and
+> not reproducibly: adding unrelated code to the file changed the outcome.
+> `$past` of the *whole* vector is reliable. Where you need one field of a wide
+> bus a cycle later, capture it in an ordinary register instead. The reproducer
+> and the probe results are in
+> [docs/37 section 13](37-parameterized-video-pipelines.md#13-tool-constraints-you-will-hit).
+> XSIM also refuses `$past` outright in an **action block** ("Unable to infer
+> clocking event... please provide explicit clocking event argument as
+> workaround").
+
 `$past` before the first N clock edges returns the initial value (`X` for
 4-state), which causes spurious failures at time 0. Guard with the reset:
 
