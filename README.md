@@ -14,8 +14,8 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 37 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 90 synthesizable modules, 3 packages, 2 runnable language demos, 16 testbenches and 26 formal proofs, all verified. See [examples/README.md](examples/README.md). |
+| **[docs/](docs/)** | 38 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[examples/](examples/)** | 96 synthesizable modules, 4 packages, 2 runnable language demos, 17 testbenches and 29 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
 correct:
@@ -45,6 +45,14 @@ And one on writing RTL that is generic in its data shape:
   components per pixel and B bits per component, flat on the wire throughout;
   what those loops actually unroll into, dumped out of the tools; and a 3x3
   median and Sobel filter built on a shared sliding window.
+
+And one on cutting an operation into stages and then stopping it again:
+
+- **[Pipeline staging and stall control](docs/38-pipeline-staging-and-stalls.md)** —
+  where the cuts go and how to measure whether they helped, then the whole stall
+  taxonomy: global stall, ripple back-pressure, the five kinds of register slice
+  including the half-rate one, skew buffers for reconvergence, and flush versus
+  drain.
 
 And one on the blocks every design ends up containing:
 
@@ -170,6 +178,7 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [38](docs/38-pipeline-staging-and-stalls.md) | Cutting a long operation into stages — the cut-set rule, a measured cut-set sweep, and why the fourth cut buys nothing — then every way to stall the result: one global enable, a ripple ready chain, forward/reverse/skid/half-rate register slices, never stalling at all, flush versus drain, and skew buffers where branches reconverge |
 | [37](docs/37-parameterized-video-pipelines.md) | Writing video RTL generic in pixels-per-clock, components-per-pixel and bits-per-component: the layout convention, unpack/work/repack, generate-replicates vs procedural-reduces and **what each kind of loop unrolls into**, accumulator sizing, the signedness traps, memory geometry, the halo problem a sliding window has at N pixels per clock, a median and a Sobel filter on one window, sideband latency matching, and how to test a claim about *all* parameter values |
 | [36](docs/36-common-peripheral-modules.md) | The catalogue of common peripherals and what each one's load-bearing decision is; the generic-register-port pattern that puts one peripheral on any of three buses; six rules that keep recurring (enable not clock, synchronize once, set beats clear, one-cycle strobes, drop-and-record, degenerate parameters); and the bugs hit building them |
 | [35](docs/35-low-power-architecture.md) | Where power goes and the hierarchy of savings, power domains, isolation and choosing a clamp value per signal, retention and its cheaper alternatives, level shifters, DVFS ordering, what the RTL must still provide for power intent to be implementable, and why a plain RTL testbench verifies none of it |
@@ -190,8 +199,8 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 ```bash
 make            # lint, then simulate, then prove
 make lint       # xvlog analysis + yosys structural checks
-make sim        # all 18 testbenches under XSIM
-make formal     # all 70 proof tasks under SymbiYosys
+make sim        # all 19 testbenches under XSIM
+make formal     # all 83 proof tasks under SymbiYosys
 make fp         # one target (see the Makefile for the list)
 make clean
 ```
@@ -275,7 +284,7 @@ independently-written reference, not against itself.
 | `fsm_tb` | the two-process, one-process and three-process styles proved to produce identical waveforms over 64 cycles of arbitrary stalling; explicit one-hot; and all 12 illegal encodings of a one-hot FSM injected by `force`, showing the safe variant recovering in one cycle and the unsafe one absorbing |
 | `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
 
-### Proved (SymbiYosys) — 26 modules, 70 tasks
+### Proved (SymbiYosys) — 29 modules, 83 tasks
 
 Formal does what simulation cannot: it *searches* the input space rather than
 sampling it.
@@ -287,6 +296,9 @@ sampling it.
 | `bin2bcd` | every nibble a legal digit **and** the digits equal the input |
 | `sort_network` | sortedness and multiset preservation at W=1 — **complete for every width** by Knuth's 0-1 principle |
 | `median9_net` | a 19-comparator median network equals element 4 of a **full sort** at W=1 — complete for every width by the same principle; plus a characterisation of "median" that mentions no algorithm at all |
+| `axis_reg_slice` | all five ways to register a handshake, one task each: no loss, no duplication, no reordering — and the half-rate mode's defining property, that two consecutive input transfers are impossible |
+| `pipe_ripple_ctrl` | elastic control with no storage: the beats in flight equal exactly the occupied stages, and the occupied stages are contiguous — the invariant the ready chain's reasoning depends on |
+| `dot_rs_dp` | a four-stage pipeline computes what the uncut expression does, from the same source with `CUTS=0`; plus the elastic task that catches a stage registered on the wrong enable, which the global-stall task provably cannot |
 | `vid_axis_win3` | the sliding-window builder never overwrites an unemitted beat, and the beats in flight are accounted for **exactly** — a bound alone does not close under induction |
 | `vid_axis_sobel` | the clamp is a clamp; a flat patch has no gradient; and the two orientation properties that can catch a transposed window index, which the output provably cannot |
 | `skid_buffer` | **unbounded**: no loss, no duplication, no reordering, for all time |

@@ -226,6 +226,13 @@ re-samples a held value) or dropped (an upstream stage advances into a frozen
 one). If you find yourself wanting per-stage enables, what you actually want is
 an [elastic pipeline](#7-elastic-pipelines-and-handshakes).
 
+> [docs/38](38-pipeline-staging-and-stalls.md) takes this further: the global
+> stall, a ripple `ready` chain and the five kinds of register slice, all driving
+> one datapath, with the throughput, latency, flop count and logic depth of each
+> measured rather than described. It also shows that a global stall is the
+> degenerate case of elastic control — the case where every per-stage enable is
+> the same wire — and what that costs you in fanout.
+
 ### Flush
 
 Flush kills in-flight work — a mispredicted branch, an aborted transaction, an
@@ -465,6 +472,13 @@ if (beats < (cycles * 99) / 100) $error("throughput regression");
 
 A common and good compromise: fixed-latency inside a block, a skid buffer at
 each boundary.
+
+The skid buffer is one of five ways to put a register in a handshake, and it is
+not always the right one — a forward-only slice is half the area, a
+ready-registered slice breaks a long `ready` chain without adding a cycle to the
+data path, and a half-rate slice registers both directions for one slot at the
+cost of half the bandwidth. [docs/38](38-pipeline-staging-and-stalls.md)
+section 8 measures all five.
 
 ---
 

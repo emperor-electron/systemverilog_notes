@@ -1,0 +1,40 @@
+[tasks]
+m_pass
+m_fwd
+m_rev
+m_full
+m_half
+cover
+
+[options]
+m_pass: mode prove
+m_fwd:  mode prove
+m_rev:  mode prove
+# FULL's storage lives inside skid_buffer, which this level cannot see into, so
+# there is no occupancy invariant here for induction to stand on. Bounded here,
+# proved unboundedly in skid_buffer_fv.sby where the state is visible.
+m_full: mode bmc
+m_full: depth 16
+m_half: mode prove
+cover:  mode cover
+cover:  depth 12
+
+[engines]
+smtbmc boolector
+
+[script]
+m_pass: verilog_defines -DM_PASS
+m_fwd:  verilog_defines -DM_FWD
+m_rev:  verilog_defines -DM_REV
+m_full: verilog_defines -DM_FULL
+m_half: verilog_defines -DM_HALF
+cover:  verilog_defines -DM_FULL
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL skid_buffer.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL axis_reg_slice.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL axis_reg_slice_fv.sv
+prep -top axis_reg_slice_fv
+
+[files]
+../examples/rtl/skid_buffer.sv
+../examples/rtl/axis_reg_slice.sv
+axis_reg_slice_fv.sv

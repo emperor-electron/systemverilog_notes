@@ -1,6 +1,6 @@
 # Examples
 
-All 111 example files analyse cleanly under `xvlog` and are latch-checked by
+All 119 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -85,6 +85,21 @@ See [docs/37](../docs/37-parameterized-video-pipelines.md).
 | [median9_net.sv](rtl/median9_net.sv) | a 3x3 median in **19 comparators** instead of the 36 a full sort costs, with a compare-exchange network written as `if`s and a temporary — and proved equivalent to the full sort |
 | [vid_axis_median3.sv](rtl/vid_axis_median3.sv) | N*P instances of that network from a four-deep generate nest: a filter with no arithmetic in it at all |
 | [vid_axis_sobel.sv](rtl/vid_axis_sobel.sv) | a convolution on the same window, with **N** engines rather than N*P because a gradient is one number per pixel; L1 magnitude, computed widths, and the properties an absolute value makes unobservable |
+
+### Pipeline staging and stall control
+
+One datapath, every stall scheme. See
+[docs/38](../docs/38-pipeline-staging-and-stalls.md).
+
+| File | What it shows |
+|---|---|
+| [pipe_pkg.sv](rtl/pipe_pkg.sv) | one definition of "how deep is this pipeline", shared by the datapath and its control so the two cannot disagree |
+| [dot_rs_dp.sv](rtl/dot_rs_dp.sv) | a dot product with rounding and saturation whose **cut set is a parameter**: `CUTS=4'b0000` is the combinational version, `4'b1111` the four-stage pipeline, and the arithmetic is written once |
+| [dot_rs_global.sv](rtl/dot_rs_global.sv) | the same datapath with one global enable — `adv = {4{en}}`, which is what makes a global stall the degenerate case of elastic control |
+| [dot_rs_elastic.sv](rtl/dot_rs_elastic.sv) | the same datapath again, with per-stage enables and a valid/ready interface. The datapath file is not touched |
+| [pipe_ripple_ctrl.sv](rtl/pipe_ripple_ctrl.sv) | elastic control with **no storage added**: the pipeline registers are the elastic slots and bubbles collapse, at the cost of an `O(N)` ready chain |
+| [axis_reg_slice.sv](rtl/axis_reg_slice.sv) | the five ways to register a handshake — pass, forward, reverse, skid and **half-rate** — in one module, so they can be measured rather than argued about |
+| [skew_buffer.sv](rtl/skew_buffer.sv) | rejoining two branches that drift apart, and why a join with no storage turns every local stall into a global one |
 
 ### Streams, interrupts and I/O
 
@@ -251,6 +266,7 @@ fp32 configuration is covered by the reference model in
 | [fsm_tb.sv](tb/fsm_tb.sv) | XSIM | Three FSM styles compared cycle-for-cycle under stalling stimulus, and fault injection of all 12 illegal encodings of a one-hot state vector. Also two testbench traps worth knowing: driving stimulus on the sampling edge, and letting X reach a DUT whose test has not started yet |
 | [video_tb.sv](tb/video_tb.sv) | XSIM | The video set instantiated **five times over** at (N,P,B) = (1,1,8) (2,3,8) (4,3,10) (2,4,12) (1,3,16), including a degenerate single-component case and a bit depth that is not a multiple of 8. Checks a reference model, bit-exact identity pass-through, per-component gains that all differ, saturation at full scale, and line-buffer tap alignment against a frame model |
 | [video_filter_tb.sv](tb/video_filter_tb.sv) | XSIM | The whole neighbourhood chain — line buffer → window → median **and** Sobel from one window — over five frames: random with and without backpressure against a clamped-coordinate frame model, then three frames checked with **no model at all** (a flat field, isolated impulses that must vanish, and a step edge that must light exactly two columns). Also the two things it got wrong first: an impulse on the frame edge is not isolated, and a saturating configuration hides arithmetic |
+| [pipeline_stall_tb.sv](tb/pipeline_stall_tb.sv) | XSIM | The stall structures, **measured**: which paths are combinational (by changing an input between clock edges and watching for an output to move in the same instant), the sustained rate of each slice mode, and the same input sequence through the elastic pipeline under three backpressure patterns with the output sequences required to match. Also the skew buffer's decoupling of two branches, and the discipline that makes a handshake driver race-free |
 | [integration_tb.sv](tb/integration_tb.sv) | XSIM | A whole UART peripheral driven through a real Wishbone slave with TX looped back to RX, so every byte survives the transmitter, the wire, the receiver, both FIFOs and the bus. Plus one-shot and periodic timing, and the CYC-without-STB case |
 | [sysmod_tb.sv](tb/sysmod_tb.sv) | XSIM | Interrupt latching/masking/priority including a set arriving in the same cycle as its clear; quadrature forward, reverse and illegal transitions; an upsizer→downsizer **round trip** at packet lengths that are and are not multiples of the ratio; one-hot digit select; and GPIO synchronizer latency |
 | [bus_tb.sv](tb/bus_tb.sv) | XSIM | APB and AXI4-Lite each fronting an identical register bank, so a failure through one bus and not the other is a bus bug and one through both is a register bug. Covers byte strobes, SLVERR on a read-only write and on an unmapped address, response backpressure, AXI channel ordering all three ways, and a W1C set arriving in the same cycle as its clear |
@@ -278,6 +294,9 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [div_const_fv](../formal/div_const_fv.sby) | bmc | **exhaustive** equivalence with `/` and `%` |
 | [sort_network_fv](../formal/sort_network_fv.sv) | bmc + cover | sortedness + multiset preservation at W=1 — **complete for all widths** |
 | [median9_net_fv](../formal/median9_net_fv.sv) | **equiv** + **wide** + cover | the 19-comparator selection network equals a full sort's median at W=1 — complete for all widths — and satisfies a model-free characterisation of "median" at W=4. A stateless network needs no induction: one BMC step is the whole input space |
+| [axis_reg_slice_fv](../formal/axis_reg_slice_fv.sv) | **m_pass** + **m_fwd** + **m_rev** + m_full + **m_half** + cover | one task per slice mode: no loss, duplication or reordering, by induction for four of the five. `m_full` is bounded because its storage lives inside `skid_buffer`, which that level cannot see into — and is proved unboundedly there instead. The harness also carries the story of a **vacuous** first version: a tied-off payload fought the module's own assumption, every task passed a broken design, and the cover task was the only thing that noticed |
+| [pipe_ripple_ctrl_fv](../formal/pipe_ripple_ctrl_fv.sv) | **prove** + bmc + cover | beats in flight equal the occupied stages exactly, and occupied stages are contiguous. Found a real bug: a flush left the beat accounting permanently skewed, and fixing it turned up the contract question of whether a flush may accept or deliver a beat in the cycle it aborts |
+| [dot_rs_fv](../formal/dot_rs_fv.sv) | bmc + **elastic** + prove + cover | the four-stage pipeline equals the uncut expression, with the coefficients free but constant. Two tasks because the global-stall wrapper makes all four stage enables the same wire and therefore provably cannot see a stage registered on the wrong one; the elastic task pins each delivered beat to its input by construction |
 | [vid_axis_win3_fv](../formal/vid_axis_win3_fv.sv) | **prove** + bmc + cover | no beat is ever loaded over an unemitted one, and the beats in flight equal `c_valid + m_tvalid` **exactly** — the bound `<= 2` is true but returns UNKNOWN |
 | [vid_axis_sobel_fv](../formal/vid_axis_sobel_fv.sv) | **prove** + bmc + **mirror** + **transpose** + cover | clamp correctness and orientation; and a measured demonstration that the mirror and transpose symmetries, though true, cannot catch a transposed window index — the function itself is symmetric |
 | [ring_counter_fv](../formal/ring_counter_fv.sv) | **prove** + bmc + cover | one-hot preserved *and* reachable |

@@ -1,0 +1,47 @@
+[tasks]
+bmc
+elastic
+prove
+cover
+
+[options]
+# The staging equivalence, from reset. Bounded: see the harness header for why
+# induction cannot close a two-instance equivalence whose alignment lives inside
+# the DUT.
+bmc:   mode bmc
+bmc:   depth 14
+# The elastic wrapper, where the four stage enables are genuinely different
+# signals. This is the task that can see a stage registered on the wrong enable;
+# the global-stall task provably cannot.
+elastic: mode bmc
+elastic: depth 16
+# Everything that IS inductive: the clamp, and the global stall's promise that
+# nothing observable moves while `en` is low.
+prove: mode prove
+cover: mode cover
+cover: depth 14
+
+[engines]
+smtbmc boolector
+
+[script]
+bmc:     verilog_defines -DEQUIV
+elastic: verilog_defines -DELASTIC
+cover:   verilog_defines -DEQUIV -DELASTIC
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL pipe_pkg.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL pipe_ctrl.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL dot_rs_dp.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL dot_rs_global.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL pipe_ripple_ctrl.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL dot_rs_elastic.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL dot_rs_fv.sv
+prep -top dot_rs_fv
+
+[files]
+../examples/rtl/pipe_pkg.sv
+../examples/rtl/pipe_ctrl.sv
+../examples/rtl/dot_rs_dp.sv
+../examples/rtl/dot_rs_global.sv
+../examples/rtl/pipe_ripple_ctrl.sv
+../examples/rtl/dot_rs_elastic.sv
+dot_rs_fv.sv
