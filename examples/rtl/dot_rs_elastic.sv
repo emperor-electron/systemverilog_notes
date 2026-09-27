@@ -23,7 +23,7 @@
 //   * The cost is in the READY path: pipe_ripple_ctrl's `s_ready` is an OR chain
 //     through every stage. Four stages is free; at thirty-two stages that chain
 //     is the critical path, and the fix is an axis_reg_slice every few stages --
-//     measured in docs/38 section 4.
+//     measured in docs/38 section 8.
 //
 // NOT SHOWN HERE, deliberately: inserting those slices. It is one instance per
 // break point and it would triple the length of this file without adding an idea.

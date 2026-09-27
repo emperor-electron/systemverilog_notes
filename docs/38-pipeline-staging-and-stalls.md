@@ -154,6 +154,11 @@ flop** — in other words the longest surviving combinational fragment, in gates
 `techmap` decomposes the adders and multipliers into a fixed gate structure
 first, so the numbers are comparable between runs.
 
+One trap in that command line: `ltp` only looks *within a module*, so a design
+with submodules needs a `flatten` before it or the answer comes back
+misleadingly short. `dot_rs_dp` has no instances in it, which is why there is no
+`flatten` above; the register-slice measurements further down do include one.
+
 For `dot_rs_dp` at `TAPS=4, XW=8, CW=10, CF=8, YW=8`:
 
 | `CUTS` | cuts enabled | latency | longest path (gates) |
