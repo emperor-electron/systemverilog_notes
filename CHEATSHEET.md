@@ -36,6 +36,7 @@ Deep dives live in [`docs/`](docs/); runnable code lives in [`examples/`](exampl
 26. [Structural technique idioms](#26-structural-technique-idioms)
 27. [Formal verification with sby](#27-formal-verification-with-sby)
 28. [FSM idioms](#28-fsm-idioms)
+29. [Configuration from software](#29-configuration-from-software)
 
 ---
 
@@ -1498,3 +1499,112 @@ $asserton(0, u_dut);
 
 `force` holds the register against its own `always_ff`, so the injected value is
 still the sampled value at the *next* edge too.
+
+---
+
+## 29. Configuration from software
+
+A register bank's outputs change on the edge the processor's write lands. The
+design has no say in when that is. See
+[docs/39](docs/39-control-registers-and-safe-reconfiguration.md).
+
+### The commit point
+
+```systemverilog
+// staged = what software wrote; active = what the hardware uses.
+always_ff @(posedge clk or negedge rst_n) begin
+  if (!rst_n)      active_q  <= '0;
+  else if (commit) active_q  <= staged;   // THE WHOLE BUNDLE, ONE ENABLE
+end
+assign commit = armed && safe;            // safe comes from the CONSUMER
+```
+
+One enable over the whole bundle is the atomicity guarantee: there is no ordering
+for software to get wrong, because there is no ordering. Loading fields
+separately, or on separate cycles, puts the tearing back.
+
+### Take the configuration as ONE wide port
+
+```systemverilog
+// Four independently-timed inputs. Nothing says they change together.
+module bad (input logic [15:0] gain, input logic [3:0] shift, ...);
+
+// One input. "The configuration is atomic" is now a statement about one register.
+module good (input logic [cfg_pkg::SCALE_CFGW-1:0] cfg, ...);
+```
+
+### An automatic commit is only as atomic as the consumer's idle window
+
+| policy | consumer busy while software writes | consumer idle |
+|---|---|---|
+| none (`active = staged`) | tears | tears |
+| commit whenever `safe` | atomic | **tears** |
+| commit when armed **and** `safe` | atomic | atomic |
+
+Software usually reconfigures a design *because* it is idle, which is exactly the
+case where an automatic commit publishes every intermediate word.
+
+### `safe` is an output of the consumer
+
+| consumer | safe point |
+|---|---|
+| engine with a unit of work | idle |
+| pipeline, quiesced | `!busy && !(in_valid && en)` — empty is not enough |
+| pipeline, config travels with the beat | always |
+
+A shared bank can only commit when **all** consumers are safe. That intersection
+can be permanently empty under load, and nothing reports it.
+
+### A command register is a write strobe, not a flop
+
+```systemverilog
+assign cmd_arm   = reg_wen && (idx == A_CTRL) && reg_wdata[0];
+assign cmd_start = reg_wen && (idx == A_CTRL) && reg_wdata[1];
+```
+
+A self-clearing bit races its own clear and reads back uselessly — software
+cannot tell "not started" from "nearly done". State software wants to poll is a
+separate `STATUS` register that is a real flop.
+
+### Give software the ACTIVE value, not just the staged one
+
+```systemverilog
+assign ro_d[1*DW +: DW] = cfg_active[0 +: DW];   // what the hardware is USING
+```
+
+Costs wires. Turns "the engine is doing something I did not ask for" from a day
+into a minute.
+
+### Snapshot at the start of a unit of work
+
+```systemverilog
+always_ff @(posedge clk or negedge rst_n)
+  if      (!rst_n)        cfg_q <= '0;
+  else if (start && safe) cfg_q <= cfg;    // motionless for the whole burst
+```
+
+Especially when a field changes the **shape** of the state graph rather than a
+value in it. A framing bit cleared mid-burst gives a packet a header and no
+trailer: every state legal, every transition legal, packet unparseable, no error
+anywhere. No `>=` instead of `==` helps with that.
+
+### Pipelines: delay each field to the stage that uses it
+
+```systemverilog
+end else if (en) begin        // `en`, or a stalled beat's config moves under it
+  sh_d1 <= shift(cfg);        // consumed one stage down  -> one register
+  lo_d1 <= lo(cfg);
+  lo_d2 <= lo_d1;             // consumed two stages down -> two
+end
+```
+
+Not the whole bundle to the end: measured 52 flops against 128 for the same
+protection.
+
+### Crossing to another clock domain
+
+Never synchronize a multi-bit configuration bus bit by bit — the bits resolve
+independently and the destination sees a mixture. Between commits the bundle is
+quasi-static, so cross the **arm pulse** with `cdc_pulse` and let the data cross
+as plain wires under `set_max_delay -datapath_only`. Keep the shadow in the
+domain that defines `safe`, so `safe` never crosses.

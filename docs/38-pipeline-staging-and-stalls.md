@@ -944,3 +944,7 @@ and compare it bare.
 - [docs/37: Parameterized video pipelines](37-parameterized-video-pipelines.md) —
   the same invariant and measurement discipline on a wider datapath, and the XSIM
   traps referenced above
+- [docs/39: Control registers and safe reconfiguration](39-control-registers-and-safe-reconfiguration.md)
+  — stalling a pipeline is one problem; reconfiguring one with beats in flight is
+  another. Quiescing uses the drain of §10, and it is measured there that under an
+  unbroken input stream the drain never comes

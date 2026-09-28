@@ -51,13 +51,14 @@ BUILD     = build
 
 # Packages must be analysed before anything that imports them.
 PKGS       = $(ARITH_DIR)/fp_pkg.sv $(ARITH_DIR)/fixed_pkg.sv \
-             $(RTL_DIR)/vid_pkg.sv $(RTL_DIR)/pipe_pkg.sv
+             $(RTL_DIR)/vid_pkg.sv $(RTL_DIR)/pipe_pkg.sv \
+             $(RTL_DIR)/cfg_pkg.sv
 
 # The subset of PKGS that the Yosys frontend can actually read, for the
 # per-module latch check below. fp_pkg.sv is not in it, and handing it to yosys
 # alongside every module makes EVERY module report as unreadable rather than
 # checked -- which is how this variable came to exist.
-YOSYS_PKGS = $(RTL_DIR)/vid_pkg.sv $(RTL_DIR)/pipe_pkg.sv
+YOSYS_PKGS = $(RTL_DIR)/vid_pkg.sv $(RTL_DIR)/pipe_pkg.sv $(RTL_DIR)/cfg_pkg.sv
 RTL_SRCS   = $(filter-out $(PKGS),$(wildcard $(RTL_DIR)/*.sv))
 ARITH_SRCS = $(filter-out $(PKGS),$(wildcard $(ARITH_DIR)/*.sv))
 ALL_SRCS   = $(PKGS) $(RTL_SRCS) $(ARITH_SRCS)
@@ -66,7 +67,7 @@ ALL_SRCS   = $(PKGS) $(RTL_SRCS) $(ARITH_SRCS)
 # the rest are in examples/tb. The mapping is resolved in the run rule.
 SIM_TESTS = signedness width_rules fp arith fifo async_fifo skid smoke \
             pipeline techniques fsm periph serial bus sysmod integ video \
-            vidfilt pstall
+            vidfilt pstall csrcfg
 
 TOP_signedness  = signedness_demo
 TOP_width_rules = width_rules_tb
@@ -87,6 +88,7 @@ TOP_integ       = integration_tb
 TOP_video       = video_tb
 TOP_vidfilt     = video_filter_tb
 TOP_pstall      = pipeline_stall_tb
+TOP_csrcfg      = csr_config_tb
 
 # The two demos need no extra file beyond ALL_SRCS; the others add their TB.
 EXTRA_signedness  =
@@ -108,6 +110,7 @@ EXTRA_integ       = $(TB_DIR)/integration_tb.sv
 EXTRA_video       = $(TB_DIR)/video_tb.sv
 EXTRA_vidfilt     = $(TB_DIR)/video_filter_tb.sv
 EXTRA_pstall      = $(TB_DIR)/pipeline_stall_tb.sv
+EXTRA_csrcfg      = $(TB_DIR)/csr_config_tb.sv
 
 .PHONY: all lint sim formal clean $(SIM_TESTS)
 

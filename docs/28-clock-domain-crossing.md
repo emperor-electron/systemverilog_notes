@@ -564,3 +564,7 @@ the result.
   constraint side
 - [docs/16: Verification architecture](16-verification-architecture.md) — the
   per-domain monitor structure the async FIFO testbench uses
+- [docs/39: Control registers and safe reconfiguration](39-control-registers-and-safe-reconfiguration.md)
+  §10 — a configuration bundle is quasi-static between commits, so it crosses as
+  plain wires qualified by a synchronized arm pulse rather than as a handshake per
+  field; and why the commit decision belongs in the domain that defines "safe"

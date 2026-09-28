@@ -1,0 +1,30 @@
+[tasks]
+m_safe
+m_arm
+prove
+cover
+
+[options]
+m_safe: mode bmc
+m_safe: depth 16
+m_arm:  mode bmc
+m_arm:  depth 16
+prove:  mode prove
+cover:  mode cover
+cover:  depth 12
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL csr_shadow.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL csr_shadow_fv.sv
+m_safe: chparam -set MODE 1 csr_shadow_fv
+m_arm:  chparam -set MODE 2 csr_shadow_fv
+prove:  chparam -set MODE 2 csr_shadow_fv
+cover:  chparam -set MODE 2 csr_shadow_fv
+prep -top csr_shadow_fv
+
+[files]
+../examples/rtl/csr_shadow.sv
+csr_shadow_fv.sv

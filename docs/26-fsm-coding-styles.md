@@ -786,3 +786,8 @@ input from time 0, even ones the current test does not care about.
   reset discipline, X-optimism
 - [docs/25: Formal with sby](25-formal-verification-with-sby.md) — the proof
   setup, induction, and the hierarchical-reference trap
+- [docs/39: Control registers and safe reconfiguration](39-control-registers-and-safe-reconfiguration.md)
+  — what happens when a configuration field parameterizes the *transition graph*
+  rather than a value in it, and a processor changes it mid-run: every state legal,
+  every transition legal, and the output unparseable. The fix is a snapshot at the
+  start of the unit of work, not a more defensive comparison

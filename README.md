@@ -14,8 +14,8 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 38 topic deep-dives — the *why* behind each construct, and the failure modes. |
-| **[examples/](examples/)** | 96 synthesizable modules, 4 packages, 2 runnable language demos, 17 testbenches and 29 formal proofs, all verified. See [examples/README.md](examples/README.md). |
+| **[docs/](docs/)** | 39 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[examples/](examples/)** | 100 synthesizable modules, 5 packages, 2 runnable language demos, 18 testbenches and 32 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
 correct:
@@ -53,6 +53,15 @@ And one on cutting an operation into stages and then stopping it again:
   taxonomy: global stall, ripple back-pressure, the five kinds of register slice
   including the half-rate one, skew buffers for reconvergence, and flush versus
   drain.
+
+And one on configuration arriving from software while the design is running:
+
+- **[Control registers and safe reconfiguration](docs/39-control-registers-and-safe-reconfiguration.md)** —
+  what a processor store actually does to a running FSM or a pipeline with beats
+  in flight, the staged/active commit point that fixes it, three commit policies
+  and the tearing each one does or does not prevent, quiescing versus letting the
+  configuration travel with the data, and the register map that makes any of it
+  observable from software.
 
 And one on the blocks every design ends up containing:
 
@@ -178,6 +187,7 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [39](docs/39-control-registers-and-safe-reconfiguration.md) | Configuration that arrives from a processor while the design is running: the three failure modes (a torn multi-word parameter, a terminal condition that moves behind the counter testing it, a pipeline beat computed under two configurations at once), the staged/active commit point, the three commit policies and the measurement showing that an automatic one is only as atomic as its consumer's idle window, who gets to define "safe" and why the window is an intersection, quiesce versus letting the configuration travel with the beat, snapshotting at the start of an FSM's unit of work when a field changes the *shape* of the state graph, command strobes and active-value mirrors, and crossing the whole thing to another clock domain |
 | [38](docs/38-pipeline-staging-and-stalls.md) | Cutting a long operation into stages — the cut-set rule, a measured cut-set sweep, and why the fourth cut buys nothing — then every way to stall the result: one global enable, a ripple ready chain, forward/reverse/skid/half-rate register slices, never stalling at all, flush versus drain, and skew buffers where branches reconverge |
 | [37](docs/37-parameterized-video-pipelines.md) | Writing video RTL generic in pixels-per-clock, components-per-pixel and bits-per-component: the layout convention, unpack/work/repack, generate-replicates vs procedural-reduces and **what each kind of loop unrolls into**, accumulator sizing, the signedness traps, memory geometry, the halo problem a sliding window has at N pixels per clock, a median and a Sobel filter on one window, sideband latency matching, and how to test a claim about *all* parameter values |
 | [36](docs/36-common-peripheral-modules.md) | The catalogue of common peripherals and what each one's load-bearing decision is; the generic-register-port pattern that puts one peripheral on any of three buses; six rules that keep recurring (enable not clock, synchronize once, set beats clear, one-cycle strobes, drop-and-record, degenerate parameters); and the bugs hit building them |
@@ -284,7 +294,7 @@ independently-written reference, not against itself.
 | `fsm_tb` | the two-process, one-process and three-process styles proved to produce identical waveforms over 64 cycles of arbitrary stalling; explicit one-hot; and all 12 illegal encodings of a one-hot FSM injected by `force`, showing the safe variant recovering in one cycle and the unsafe one absorbing |
 | `techniques_tb` | double dabble exhaustive over 8 bits; constant multiply exhaustive with CSD and binary encodings proved equal; constant divide exhaustive for five divisors; a 9-element sorting network against insertion sort; elaboration-computed ROM; SRL delay under a random enable; ring-counter self-correction after forced corruption; the microcoded sequencer walking its protocol |
 
-### Proved (SymbiYosys) — 29 modules, 83 tasks
+### Proved (SymbiYosys) — 32 modules, 92 tasks
 
 Formal does what simulation cannot: it *searches* the input space rather than
 sampling it.
@@ -298,6 +308,9 @@ sampling it.
 | `median9_net` | a 19-comparator median network equals element 4 of a **full sort** at W=1 — complete for every width by the same principle; plus a characterisation of "median" that mentions no algorithm at all |
 | `axis_reg_slice` | all five ways to register a handshake, one task each: no loss, no duplication, no reordering — and the half-rate mode's defining property, that two consecutive input transfers are impossible |
 | `pipe_ripple_ctrl` | elastic control with no storage: the beats in flight equal exactly the occupied stages, and the occupied stages are contiguous — the invariant the ready chain's reasoning depends on |
+| `csr_shadow` | a 128-bit configuration commits **atomically or not at all**, never outside the consumer's permission, and an arm is never dropped however long it waits — against a `staged` bundle free to change on every cycle |
+| `cfg_burst_fsm` | an FSM whose transition graph depends on its configuration, against a configuration free to change on every cycle: the burst emits exactly the length latched at its start, walks `base + n*stride`, and emits a trailer **if and only if** it emitted a header |
+| `cfg_pipe_scale` | the real `csr_shadow` wired to the real datapath — not an assumed contract — proving every beat comes out computed under the configuration that was active when it went *in* |
 | `dot_rs_dp` | a four-stage pipeline computes what the uncut expression does, from the same source with `CUTS=0`; plus the elastic task that catches a stage registered on the wrong enable, which the global-stall task provably cannot |
 | `vid_axis_win3` | the sliding-window builder never overwrites an unemitted beat, and the beats in flight are accounted for **exactly** — a bound alone does not close under induction |
 | `vid_axis_sobel` | the clamp is a clamp; a flat patch has no gradient; and the two orientation properties that can catch a transposed window index, which the output provably cannot |

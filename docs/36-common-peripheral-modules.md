@@ -424,3 +424,8 @@ and pairs each SCL fall with the rise before it. See
   in §8 were found
 - [docs/34: Coding conventions](34-coding-conventions-and-reuse.md) — degenerate
   parameters, elaboration-time checks
+- [docs/39: Control registers and safe reconfiguration](39-control-registers-and-safe-reconfiguration.md)
+  — `csr_bank`'s `rw_q` changes on the edge the write lands, which is the right
+  behaviour and not usually what the design consuming it can survive; the commit
+  point that closes the gap, and the command-strobe and active-mirror patterns
+  that make it observable from software

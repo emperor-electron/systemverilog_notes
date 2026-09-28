@@ -1,0 +1,23 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc:   mode bmc
+bmc:   depth 22
+cover: mode cover
+cover: depth 16
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL cfg_pkg.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL cfg_burst_fsm.sv
+read_verilog -sv -formal -DSYNTHESIS -DFORMAL cfg_burst_fsm_fv.sv
+prep -top cfg_burst_fsm_fv
+
+[files]
+../examples/rtl/cfg_pkg.sv
+../examples/rtl/cfg_burst_fsm.sv
+cfg_burst_fsm_fv.sv

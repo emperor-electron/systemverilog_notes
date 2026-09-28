@@ -1,6 +1,6 @@
 # Examples
 
-All 119 example files analyse cleanly under `xvlog` and are latch-checked by
+All 125 example files analyse cleanly under `xvlog` and are latch-checked by
 yosys, and every one is exercised by the testbenches in [`tb/`](tb/). `make`
 from the repository root runs everything.
 
@@ -122,6 +122,19 @@ One datapath, every stall scheme. See
 | [wb_slave.sv](rtl/wb_slave.sv) | Wishbone B4 classic: qualified on CYC **and** STB, with a registered ACK |
 | [uart_periph.sv](rtl/uart_periph.sv) | a whole UART peripheral — TX/RX, two FIFOs, a register map — assembled from parts verified separately, so only the wiring is new |
 | [axil_slave.sv](rtl/axil_slave.sv) | AXI4-Lite subordinate: AW and W accepted **in either order**, every `ready` a function of registers only, exactly one B per write |
+
+### Configuration from software
+
+A commit point between what a processor has written and what the hardware is
+using. See [docs/39](../docs/39-control-registers-and-safe-reconfiguration.md).
+
+| File | What it shows |
+|---|---|
+| [cfg_pkg.sv](rtl/cfg_pkg.sv) | the register map of the two worked consumers, and the golden model of the one that does arithmetic — deliberately a single expression chain, because the DUT spreads the same arithmetic over three stages and a model that shared its staging could not detect a beat picking up the wrong stage's configuration |
+| [csr_shadow.sv](rtl/csr_shadow.sv) | staged versus active: a whole configuration bundle commits **in one cycle under one enable**, and only when the consumer says it is safe. Three commit policies, one of which is deliberately no protection at all so every proof can be pointed at the unprotected design |
+| [cfg_burst_fsm.sv](rtl/cfg_burst_fsm.sv) | an FSM whose `hdr_en` field changes the **shape of its transition graph**, not a value in it — so a mid-burst write makes it walk a legal path through a graph that moved, and emit a header with no trailer. Snapshots at the start of each burst; `LIVE_CFG=1` switches the fault back on |
+| [cfg_pipe_scale.sv](rtl/cfg_pipe_scale.sv) | three stages reading three configuration fields at three different times. Reading them live gives one beat the old gain and the new shift; the fix is either to quiesce (**four cells**, and reconfiguration may never land under load) or to let each field travel to the stage that uses it (**52 flops**, and it never has to wait) |
+| [csr_ctrl_top.sv](rtl/csr_ctrl_top.sv) | the whole path — AXI4-Lite, bank, shadow, two consumers — with the parts that make it usable from software: command **strobes** rather than self-clearing bits, mirrors of the *active* value beside the staged one, an `applied` event, and a write during a pending commit both suppressed and reported |
 
 ### Memory
 
@@ -267,6 +280,7 @@ fp32 configuration is covered by the reference model in
 | [video_tb.sv](tb/video_tb.sv) | XSIM | The video set instantiated **five times over** at (N,P,B) = (1,1,8) (2,3,8) (4,3,10) (2,4,12) (1,3,16), including a degenerate single-component case and a bit depth that is not a multiple of 8. Checks a reference model, bit-exact identity pass-through, per-component gains that all differ, saturation at full scale, and line-buffer tap alignment against a frame model |
 | [video_filter_tb.sv](tb/video_filter_tb.sv) | XSIM | The whole neighbourhood chain — line buffer → window → median **and** Sobel from one window — over five frames: random with and without backpressure against a clamped-coordinate frame model, then three frames checked with **no model at all** (a flat field, isolated impulses that must vanish, and a step edge that must light exactly two columns). Also the two things it got wrong first: an impulse on the frame edge is not isolated, and a saturating configuration hides arithmetic |
 | [pipeline_stall_tb.sv](tb/pipeline_stall_tb.sv) | XSIM | The stall structures, **measured**: which paths are combinational (by changing an input between clock edges and watching for an output to move in the same instant), the sustained rate of each slice mode, and the same input sequence through the elastic pipeline under three backpressure patterns with the output sequences required to match. Also the skew buffer's decoupling of two branches, and the discipline that makes a handshake driver race-free |
+| [csr_config_tb.sv](tb/csr_config_tb.sv) | XSIM | Reconfiguration hazards, **measured**: a four-word configuration written one word per cycle through each commit policy, counting the cycles in which the active value was one nobody wrote — which is how the automatic policy turns out to tear whenever its consumer happens to be idle. Then an FSM and a pipeline each driven twice from identical stimulus, snapshotting and live, with the configuration rewritten underneath. Ends with the whole path over AXI4-Lite, including the one directed vector of literal hex words that pins the register map to something outside `cfg_pkg` |
 | [integration_tb.sv](tb/integration_tb.sv) | XSIM | A whole UART peripheral driven through a real Wishbone slave with TX looped back to RX, so every byte survives the transmitter, the wire, the receiver, both FIFOs and the bus. Plus one-shot and periodic timing, and the CYC-without-STB case |
 | [sysmod_tb.sv](tb/sysmod_tb.sv) | XSIM | Interrupt latching/masking/priority including a set arriving in the same cycle as its clear; quadrature forward, reverse and illegal transitions; an upsizer→downsizer **round trip** at packet lengths that are and are not multiples of the ratio; one-hot digit select; and GPIO synchronizer latency |
 | [bus_tb.sv](tb/bus_tb.sv) | XSIM | APB and AXI4-Lite each fronting an identical register bank, so a failure through one bus and not the other is a bus bug and one through both is a register bug. Covers byte strobes, SLVERR on a read-only write and on an unmapped address, response backpressure, AXI channel ordering all three ways, and a W1C set arriving in the same cycle as its clear |
@@ -281,7 +295,7 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 
 ## `../formal/` — SymbiYosys proofs
 
-23 modules, 59 tasks, run by `make formal` or `formal/run_all.sh`.
+32 modules, 92 tasks, run by `make formal` or `formal/run_all.sh`.
 
 | Proof | Mode | What it settles |
 |---|---|---|
@@ -296,6 +310,9 @@ Every testbench has a global timeout, prints a definite PASS/FAIL, and
 | [median9_net_fv](../formal/median9_net_fv.sv) | **equiv** + **wide** + cover | the 19-comparator selection network equals a full sort's median at W=1 — complete for all widths — and satisfies a model-free characterisation of "median" at W=4. A stateless network needs no induction: one BMC step is the whole input space |
 | [axis_reg_slice_fv](../formal/axis_reg_slice_fv.sv) | **m_pass** + **m_fwd** + **m_rev** + m_full + **m_half** + cover | one task per slice mode: no loss, duplication or reordering, by induction for four of the five. `m_full` is bounded because its storage lives inside `skid_buffer`, which that level cannot see into — and is proved unboundedly there instead. The harness also carries the story of a **vacuous** first version: a tied-off payload fought the module's own assumption, every task passed a broken design, and the cover task was the only thing that noticed |
 | [pipe_ripple_ctrl_fv](../formal/pipe_ripple_ctrl_fv.sv) | **prove** + bmc + cover | beats in flight equal the occupied stages exactly, and occupied stages are contiguous. Found a real bug: a flush left the beat accounting permanently skewed, and fixing it turned up the contract question of whether a flush may accept or deliver a beat in the cycle it aborts |
+| [csr_shadow_fv](../formal/csr_shadow_fv.sv) | m_safe + m_arm + **prove** + cover | a 128-bit configuration commits atomically or not at all, never outside the consumer's permission, and an arm is never dropped however long it waits — with `staged` a **free** 128-bit input, which is both the strongest possible model of software and the thing `axis_reg_slice_fv` learned not to tie off. The cover that matters asks for a *torn* value published atomically, and it is reached |
+| [cfg_burst_fsm_fv](../formal/cfg_burst_fsm_fv.sv) | bmc + cover | an FSM against a configuration free to change on **every cycle**: exactly the length latched at start, `base + n*stride` checked against a multiplier the datapath does not contain, and a trailer if and only if a header. Bounded, and honestly so — four extra invariants were written to close k-induction and did not (UNKNOWN after 677s; the address multiplier is the obstruction), so the unbounded claim was dropped rather than weakened into something that passes. A cover confirms the solver really does move the configuration mid-burst, since "the hazard was never exercised" and "the design is immune" produce identical PASS output |
+| [cfg_pipe_scale_fv](../formal/cfg_pipe_scale_fv.sv) | **travel** + **quiesce** + cover | the real `csr_shadow` **instantiated**, not assumed: what is proved is the composition, which is also what ships. Every beat must equal an independent model of "the configuration that was active when this beat entered", and the two modes differ only in whether the harness needs the shadow to hold anything still. No `prove` task, and the reason is measured: two multipliers and two variable shifters, one set in the DUT and one in the reference, make depth 7 finish in under a second and depth 8 not finish in 300 |
 | [dot_rs_fv](../formal/dot_rs_fv.sv) | bmc + **elastic** + prove + cover | the four-stage pipeline equals the uncut expression, with the coefficients free but constant. Two tasks because the global-stall wrapper makes all four stage enables the same wire and therefore provably cannot see a stage registered on the wrong one; the elastic task pins each delivered beat to its input by construction |
 | [vid_axis_win3_fv](../formal/vid_axis_win3_fv.sv) | **prove** + bmc + cover | no beat is ever loaded over an unemitted one, and the beats in flight equal `c_valid + m_tvalid` **exactly** — the bound `<= 2` is true but returns UNKNOWN |
 | [vid_axis_sobel_fv](../formal/vid_axis_sobel_fv.sv) | **prove** + bmc + **mirror** + **transpose** + cover | clamp correctness and orientation; and a measured demonstration that the mirror and transpose symmetries, though true, cannot catch a transposed window index — the function itself is symmetric |
