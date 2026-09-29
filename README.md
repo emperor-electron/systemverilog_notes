@@ -14,7 +14,7 @@ and — where the tool can read it — proved with SymbiYosys. `make` runs the l
 | | |
 |---|---|
 | **[CHEATSHEET.md](CHEATSHEET.md)** | The whole language in one file. Syntax tables, operator precedence, scheduling regions, and an arithmetic quick reference. Start here, then follow the links. |
-| **[docs/](docs/)** | 39 topic deep-dives — the *why* behind each construct, and the failure modes. |
+| **[docs/](docs/)** | 43 topic deep-dives — the *why* behind each construct, and the failure modes. |
 | **[examples/](examples/)** | 100 synthesizable modules, 5 packages, 2 runnable language demos, 18 testbenches and 32 formal proofs, all verified. See [examples/README.md](examples/README.md). |
 
 Three documents on making designs fast, small and buildable rather than merely
@@ -53,6 +53,16 @@ And one on cutting an operation into stages and then stopping it again:
   taxonomy: global stall, ripple back-pressure, the five kinds of register slice
   including the half-rate one, skew buffers for reconvergence, and flush versus
   drain.
+
+And a four-part catalogue of the patterns the rest of the repository is made of:
+
+- **[RTL design patterns](docs/40-rtl-design-patterns.md)** — 61 patterns in the shape
+  the Gang of Four used, plus an account of which parts of that apparatus survive the
+  move to hardware and which do not. The engine is different (hardware defers binding to
+  *elaboration*, not to run time), there is an axis GoF does not have (a clock), and
+  *Consequences* gets sharper rather than vaguer, because a hardware pattern spends six
+  things that are all measurable. With the anti-patterns, and an explicit statement of
+  which entries have verified code behind them and which are only sketches.
 
 And one on configuration arriving from software while the design is running:
 
@@ -187,6 +197,10 @@ arithmetic. Synthesizable constructs are marked **[S]**, simulation-only
 | Doc | Topic |
 |---|---|
 | [25](docs/25-formal-verification-with-sby.md) | The SymbiYosys flow: bmc/prove/cover, the Yosys frontend subset in full, the harness pattern, closing an induction proof, assume-vs-assert, sequence numbering, reading a counterexample |
+| [40](docs/40-rtl-design-patterns.md) | The pattern catalogue's frame: what translates from GoF and what does not (the mechanism is elaboration rather than run time; there is no software ancestor for metastability; Participants and Collaborations collapse while Consequences gets sharper), the six currencies a hardware pattern can spend and how to measure each, the template, the classified index of all 61, two worked stacks showing how patterns compose in a real block, eight anti-patterns with their failure signatures and how to *detect* each, and an explicit coverage statement |
+| [41](docs/41-structural-and-behavioral-patterns.md) | Twelve patterns about how blocks connect and fourteen about how they sequence: the valid/ready contract and the three ways to register it (measured — 9 flops against 18, and one at half rate), FIFOs, bridges and register banks, gearboxes, routers, forks and joins, framing; then controller/datapath splits, hierarchical and microcoded sequencing, valid-bit pipelines, global stalls, arbiters, resource sharing, C-slowing, ping-pong, credits, tagging, sticky status and watchdogs |
+| [42](docs/42-clocking-elaboration-and-timing-patterns.md) | Nine crossing patterns (the group with no software ancestry), six elaboration-time patterns (GoF's Creational category, relocated to where hardware actually binds), and ten timing patterns spending the two currencies a waveform cannot show you — depth and fanout — with the `yosys ltp` recipe and the measured cut-set and tree-versus-chain numbers |
+| [43](docs/43-memory-and-verification-patterns.md) | Ring buffers, sliding windows and the halo problem, port multiplication, read-latency compensation, content-addressable lookup; then the five observability patterns, four of which cost almost nothing and have to be decided before the design is finished rather than after |
 | [39](docs/39-control-registers-and-safe-reconfiguration.md) | Configuration that arrives from a processor while the design is running: the three failure modes (a torn multi-word parameter, a terminal condition that moves behind the counter testing it, a pipeline beat computed under two configurations at once), the staged/active commit point, the three commit policies and the measurement showing that an automatic one is only as atomic as its consumer's idle window, who gets to define "safe" and why the window is an intersection, quiesce versus letting the configuration travel with the beat, snapshotting at the start of an FSM's unit of work when a field changes the *shape* of the state graph, command strobes and active-value mirrors, and crossing the whole thing to another clock domain |
 | [38](docs/38-pipeline-staging-and-stalls.md) | Cutting a long operation into stages — the cut-set rule, a measured cut-set sweep, and why the fourth cut buys nothing — then every way to stall the result: one global enable, a ripple ready chain, forward/reverse/skid/half-rate register slices, never stalling at all, flush versus drain, and skew buffers where branches reconverge |
 | [37](docs/37-parameterized-video-pipelines.md) | Writing video RTL generic in pixels-per-clock, components-per-pixel and bits-per-component: the layout convention, unpack/work/repack, generate-replicates vs procedural-reduces and **what each kind of loop unrolls into**, accumulator sizing, the signedness traps, memory geometry, the halo problem a sliding window has at N pixels per clock, a median and a Sobel filter on one window, sideband latency matching, and how to test a claim about *all* parameter values |

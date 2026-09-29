@@ -265,6 +265,23 @@ fp32 configuration is covered by the reference model in
 
 ---
 
+## Reading this as a pattern catalogue
+
+Every module here is an instance of something, and
+[docs/40–43](../docs/40-rtl-design-patterns.md) names 61 of them in the shape the Gang of
+Four used — Intent, Applicability (including *do not use it when*), Consequences in
+measured currencies, and the Implementation traps. 46 of those entries point back at a
+file in this directory; the catalogue says which 15 do not.
+
+Two modules here are worth reading *as stacks* rather than as code:
+[`uart_periph.sv`](rtl/uart_periph.sv) is eight patterns and
+[`csr_ctrl_top.sv`](rtl/csr_ctrl_top.sv) is seven, and in both cases the bugs were at the
+joins rather than in the parts —
+[docs/40 §5](../docs/40-rtl-design-patterns.md#5-patterns-compose-two-worked-stacks) takes
+them apart.
+
+---
+
 ## `tb/` — testbenches
 
 | File | Tool | What it demonstrates |
